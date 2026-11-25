@@ -2,7 +2,7 @@
 
 **Plain-English algorithmic trading for Indian brokers.** Describe a strategy the way you would say it out loud ("Buy Nifty ATM call when 9 EMA crosses above 21 EMA on 15-min candles after 9:30 AM, exit on opposite cross or 3:15 PM, max 2 trades a day"). TradeCognix turns it into structured rules, backtests it with real Indian costs, paper-trades it, and only then, with explicit server-side and in-app confirmation, places orders through **your own** broker account.
 
-**Live site:** https://tradex777.github.io/tradecognix/ (demo mode, runs in the browser) · admin console at [/admin/](https://tradex777.github.io/tradecognix/admin/)
+**Live site:** https://tradex777.github.io/tradecognix/ (real mode only: needs the engine URL in `web/js/config.js`; shows "Engine offline" otherwise) · admin console at [/admin/](https://tradex777.github.io/tradecognix/admin/)
 
 > © 2026 DevCognix. Proprietary, see [LICENSE](LICENSE). Contact: contact@devcognix.com · +91 901 908 8160
 
@@ -19,7 +19,7 @@
 | `backend/app/brokers/` | `BrokerAdapter` interface, Angel One SmartAPI (full), Zerodha / Upstox / Dhan / Fyers (best-effort real), Groww / ICICI / Kotak Neo / 5paisa / Alice Blue / Shoonya (documented skeletons), PaperBroker |
 | `backend/app/engine/` | APScheduler engine running strategies on candle close, guardrails, kill switch, order tagging, journal writes |
 | `backend/app/api/` | REST: auth (JWT + bcrypt, roles), brokers, strategies, backtests, paper/live, journal, admin; WebSocket `/ws/live` |
-| `web/` | The designed marketing site + app prototype. `web/js/api.js` wires it to the backend when `TC_API_BASE` is set; otherwise it runs as a self-contained demo |
+| `web/` | The designed marketing site + app prototype. `web/js/api.js` wires it to the backend when `TC_API_BASE` is set; otherwise it shows "Engine offline" and blocks actions (no demo mode) |
 | `admin/` | Static admin console (users, strategies, live sessions, stats, platform kill switch) |
 | `mobile/` | Phase-3 plan for the Expo React Native app |
 | `brand/` | Logo and mark |
@@ -97,7 +97,7 @@ Front-ends:
 ```bash
 # from the repo root
 python -m http.server 8080
-# site in demo mode:          http://localhost:8080/web/
+# site (point it at the engine with ?api=http://localhost:8000):          http://localhost:8080/web/
 # site wired to your API:     http://localhost:8080/web/?api=http://localhost:8000   (remembered; ?api=off to reset)
 # admin console:              http://localhost:8080/admin/
 ```
@@ -130,7 +130,7 @@ Guardrails on every session: max trades/day, daily loss cap (stops entries and s
 
 ### Important data caveats
 
-- **Synthetic data**: without a connected broker, backtests run on generated NIFTY-like candles. Results are flagged `synthetic_underlying_data`. They demonstrate the engine, not an edge.
+- **Market data**: backtests use real Angel One candles when the platform account (`ANGEL_*`) is set. With `ALLOW_SYNTHETIC_DATA=false` (production) the engine refuses to backtest without it. Synthetic candles exist only for local tests and are flagged `synthetic_underlying_data`.
 - **Option premiums**: historical option candles are not used yet; premiums are estimated with Black-Scholes at a constant VIX-like IV (default 14%) and flagged `premium_proxy_black_scholes`. Real premiums have skew, IV crush and spreads. Treat option backtests as indicative.
 - **Rates**: every charge and contract spec lives in `backend/app/backtest/rates.py`, marked *verify current rates*. Defaults (reviewed 22 Nov 2026): STT on options 0.1% of sell premium before 1 Apr 2026 and **0.15% from 1 Apr 2026** (Budget 2026-27), futures 0.02% → 0.05%; NSE options transaction 0.03503% + IPFT 0.0005%; SEBI ₹10/crore; stamp 0.003% (options buy); GST 18%. Lot sizes NIFTY 65, BANKNIFTY 30, FINNIFTY 60, MIDCPNIFTY 120, SENSEX 20. Weekly expiries: NIFTY (Tuesday) and SENSEX (Thursday) only.
 
@@ -161,13 +161,13 @@ Limits are enforced server-side in `backend/app/billing/plans.py` (the single so
 | Pro | ₹999/month or ₹9,990/year | 100 | 5 | Yes | Yes |
 | Elite | ₹2,499/month (monthly only) | Unlimited | Unlimited | Yes | Yes |
 
-**Payments disabled during beta.** The site does not take payments and never loads Razorpay. Get Pro / Get Elite open an inline "Free during beta — join the waitlist" form: with a backend configured it posts to `POST /api/waitlist` (public, rate-limited, one row per email in `WaitlistEntry`); in demo mode (including the GitHub Pages site) the email is only kept in the visitor's `localStorage` and nothing is sent. Plan limits are still enforced server-side; during beta an admin can grant Pro/Elite with `PATCH /api/admin/users/{id}`.
+**Payments disabled during beta.** The site does not take payments and never loads Razorpay. Get Pro / Get Elite open an inline "Free during beta — join the waitlist" form: with a backend configured it posts to `POST /api/waitlist` (public, rate-limited, one row per email in `WaitlistEntry`); without a backend the form is disabled. Plan limits are still enforced server-side; during beta an admin can grant Pro/Elite with `PATCH /api/admin/users/{id}`.
 
 The Razorpay billing code is kept but dormant: `POST /api/billing/checkout` returns an order, Razorpay Checkout runs on the client, then `POST /api/billing/verify` checks the signature and activates the plan (the webhook activates it too). It answers 503 until `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` are set, and nothing in `web/` calls it. To turn payments on later, set the keys and wire the Pro/Elite buttons back to checkout.
 
 ## Deploying for free
 
-### One-click backend on Render (paper / demo)
+### One-click backend on Render (backtests / paper)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Tradex777/tradecognix)
 
@@ -182,7 +182,7 @@ After the first deploy, open `https://<your-service>.onrender.com/health` (shoul
 |---|---|---|
 | `web/` and `admin/` | **Vercel** or **Netlify** (or GitHub Pages) | Pure static. Point the project root at `web/` (and a second project at `admin/`). Set `TC_API_BASE` in `web/js/config.js`. Add the site origins to `CORS_ORIGINS`. |
 | Backend for **live** trading | **Oracle Cloud Always Free** VM (Ampere A1 / E2.1.Micro) with a **reserved public IP** | Brokers only accept API orders from a whitelisted static IP. Run `deploy/oracle-vm-setup.sh`, then `docker compose up -d --build`, put Caddy in front (`deploy/Caddyfile`) for free HTTPS, and register the reserved IP with your broker. Set `STATIC_IP` in `.env`; `GET /api/brokers/static-ip` confirms the egress IP matches. |
-| Backend for **paper/demo** only | **Render** free web service (`render.yaml`) | Sleeps when idle and has no static egress IP: fine for demos and paper, not for live orders. Keep `LIVE_TRADING_ENABLED=false`. |
+| Backend for **backtests/paper** only | **Render** free web service (`render.yaml`) | Sleeps when idle and has no static egress IP: fine for demos and paper, not for live orders. Keep `LIVE_TRADING_ENABLED=false`. |
 | Database | **Supabase** free Postgres | Paste the connection string into `DATABASE_URL` (`postgres://` URLs are normalised automatically). SQLite is fine on a single VM. |
 | LLM (optional) | **Google Gemini** free tier, or a local **Ollama** via `OPENAI_BASE_URL` | Without either, the deterministic parser does everything. |
 

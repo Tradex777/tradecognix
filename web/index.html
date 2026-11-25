@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>TradeCognix · Plain-English algo trading for Indian traders</title>
-    <meta name="description" content="Describe a trading strategy in plain English. TradeCognix turns it into rules, backtests it on NSE data with real Indian costs (brokerage, STT, GST, stamp duty, slippage), paper-trades it, then runs it live through your own broker." />
+    <meta name="description" content="Describe a trading strategy in plain English. TradeCognix turns it into rules, backtests it on real NSE candles from Angel One with real Indian costs (brokerage, STT, GST, stamp duty, slippage), paper-trades it, then runs it live through your own broker." />
     <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="color-scheme" content="dark light" />
@@ -48,7 +48,7 @@
         "name": "TradeCognix",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
-        "description": "Plain-English algo trading for Indian retail traders: describe a strategy in English, backtest it on NSE data with real Indian costs, paper trade it, then trade live through your own broker.",
+        "description": "Plain-English algo trading for Indian retail traders: describe a strategy in English, backtest it on real NSE candles from Angel One with real Indian costs, paper trade it, then trade live through your own broker.",
         "inLanguage": "en-IN",
         "publisher": { "@type": "Organization", "name": "DevCognix", "email": "contact@devcognix.com" },
         "offers": [
@@ -144,7 +144,7 @@
             <div class="hero__copy">
               <p class="hero__eyebrow"><b>Beta</b>Angel One is live.<span class="hide-sm"> Eleven more brokers are on the way.</span></p>
               <h1 class="h1" id="hero-title">Write the strategy the way you&rsquo;d say it. Then see what it <span class="shine">nets after STT.</span></h1>
-              <p class="hero__sub">The 9:20 straddle you&rsquo;ve been placing by hand, or the EMA cross a friend swears by. Type it out, check the rules we pull from it, and backtest on NSE data with brokerage, STT, GST, stamp duty and slippage taken out of every fill. Still making money? Paper trade it, then take it live through your own broker.</p>
+              <p class="hero__sub">The 9:20 straddle you&rsquo;ve been placing by hand, or the EMA cross a friend swears by. Type it out, check the rules we pull from it, and backtest on real NSE candles with brokerage, STT, GST, stamp duty and slippage taken out of every fill. Still making money? Paper trade it, then take it live through your own broker.</p>
               <button class="btn btn--primary btn--lg" type="button" data-open-app="studio" data-magnetic>Backtest an idea now <svg aria-hidden="true"><use href="#m-arrow" /></svg></button>
               <div class="hero__meta">
                 <span><svg aria-hidden="true"><use href="#m-tick" /></svg>Backtests need no account</span>
@@ -881,7 +881,7 @@
     <div class="toast" id="x-toast" role="status" aria-live="polite"></div>
 
 
-    <!-- Backend wiring: set window.TC_API_BASE in js/config.js (or open with ?api=https://your-api). Empty = demo mode. -->
+    <!-- Backend wiring: set window.TC_API_BASE in js/config.js (or open with ?api=https://your-api). Empty = engine offline (no demo mode). -->
     <script src="js/config.js"></script>
     <script src="chart.js"></script>
     <script src="app.js"></script>
