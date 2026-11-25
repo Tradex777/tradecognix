@@ -5,7 +5,7 @@
  * is unreachable the app says so instead of simulating. ?api=https://... overrides it for testing.
  */
 (function () {
-  var ENGINE = ""; // set to the deployed backend URL, e.g. "https://tradecognix-api.onrender.com"
+  var ENGINE = "https://tradecognix-api-fr5o.onrender.com"; // Render free (spins down when idle; first request can take ~50s)
   var params = new URLSearchParams(window.location.search);
   var fromQuery = params.get("api");
   if (fromQuery === "default") localStorage.removeItem("tc_api_base");
