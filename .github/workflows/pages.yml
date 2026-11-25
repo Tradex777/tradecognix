@@ -1,7 +1,7 @@
 name: Deploy site to GitHub Pages
 
 # Publishes web/ (and admin/ at /admin/) to the gh-pages branch, which GitHub Pages serves at
-# https://tradex007.github.io/Tradecognix/
+# https://tradex777.github.io/tradecognix/
 on:
   push:
     branches: [main]

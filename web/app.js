@@ -262,15 +262,9 @@
     });
   }
   function drawDash() {
-    // js/api.js sets S.dash to the signed-in account's cumulative net P&L; otherwise draw the demo curve.
-    if (S.dash) {
-      if (!S.dash.values.length) { if (charts.dash) { charts.dash.destroy && charts.dash.destroy(); charts.dash = null; } return; }
-      charts.dash = equityChart("x-dash-chart", S.dash.labels, S.dash.values, function (l) { return l; }, true);
-      return;
-    }
-    var raw = JSON.parse($("#x-equity-data").textContent);
-    var labels = raw.map(function (_, i) { return i + 1; });
-    charts.dash = equityChart("x-dash-chart", labels, raw, function (l) { return "Day " + l; }, false);
+    // js/api.js sets S.dash to the signed-in account's cumulative net P&L. No account, no chart.
+    if (!S.dash || !S.dash.values.length) { if (charts.dash) { charts.dash.destroy && charts.dash.destroy(); charts.dash = null; } return; }
+    charts.dash = equityChart("x-dash-chart", S.dash.labels, S.dash.values, function (l) { return l; }, true);
   }
   function redrawCharts() {
     if (!app.hidden && current === "dashboard") drawDash();
@@ -334,20 +328,17 @@
     $("#x-guide-show").hidden = !off || finished;
     if (box.hidden) return;
     var act = $("#x-guide-act"), text, label = "", step = Math.min(cur, 3);
-    if (cur === 1) { text = "New here? Tap a template, or describe your own idea in plain English, then press Generate rules."; label = "See templates"; }
+    if (cur === 1) text = "Describe your strategy in plain English: instrument, entry, exit and a risk limit. Then press Generate rules.";
     else if (cur === 2) text = "Check the rules. Click any value to change it, then press Run backtest. Brokerage, STT and slippage are included.";
     else if (signedIn()) text = "Happy with the result? Start paper trading. It runs on live prices and no money moves.";
     else { text = "Happy with the result? Create a free account to paper trade on live prices. No money moves."; label = "Create free account"; }
     $("#x-guide-step").textContent = step + "/3";
     $("#x-guide-text").textContent = text;
     act.hidden = !label; act.textContent = label;
-    act.dataset.go = cur === 1 ? "tpl" : "auth";
+    act.dataset.go = "auth";
   }
   $("#x-guide-act").addEventListener("click", function (e) {
-    if (e.currentTarget.dataset.go === "tpl") {
-      var g = $(".tpls"); g.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
-      var first = $(".tpl"); if (first) first.focus({ preventScroll: true });
-    } else requireAuth(null);
+    requireAuth(null);
   });
   $("#x-guide-close").addEventListener("click", function () { localStorage.setItem("tc_guide_off", "1"); setStep(); });
   $("#x-guide-show").addEventListener("click", function () { localStorage.removeItem("tc_guide_off"); setStep(); });
@@ -595,33 +586,12 @@
     if (API_ON && window.TradeCognixAPI) window.TradeCognixAPI.signOut(); else { S.user = null; store.set("tc_demo_user", null); toast("Signed out"); }
     renderAccount(""); renderChecklist();
   });
-  $("#x-reset").addEventListener("click", function () {
-    ["tc_demo_user", "tc_demo_brokers", "tc_demo_sessions", "tc_demo_journal", "tc_demo_strategies"].forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
-    S.user = null; S.connected = []; S.sessions = []; S.backtests = []; S.model = null; S.parsed = false; S.saved = []; S.journal = []; S.savedId = null; S.afterBroker = null;
-    $("#x-results").hidden = true; $("#x-rules-panel").hidden = true; $("#x-cop").hidden = true; copReset(); $("#x-gen-log").textContent = ""; $("#x-bt-count").textContent = "";
-    syncKill(); renderAccount(""); renderBrokers(); setStep(); renderChecklist(); toast("Demo data cleared");
-  });
-
   function renderSettings() {
     renderAccount();
     $$("[data-theme-set]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.themeSet === theme())); });
-    $("#x-api-text").textContent = API_ON ? "Connected to " + window.TC_API_BASE + ". Open the site with ?api=off to return to demo mode." : "Demo mode: everything runs in your browser. Set TC_API_BASE in js/config.js, or open with ?api=https://your-api, to use the backend.";
-    var b = $("#x-api-badge"); b.textContent = API_ON ? "API" : "Demo"; b.className = "badge " + (API_ON ? "badge--live" : "badge--warn");
-    $("#x-api-connect").hidden = API_ON;
-    if (!API_ON) $("#x-api-text").textContent = "Demo mode: everything runs in your browser and nothing is sent anywhere.";
+    $("#x-api-text").textContent = API_ON ? "Connected to the TradeCognix engine." : "The TradeCognix engine isn't reachable right now.";
+    var b = $("#x-api-badge"); b.textContent = API_ON ? "Online" : "Offline"; b.className = "badge " + (API_ON ? "badge--live" : "badge--warn");
   }
-  $("#x-api-form").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var inp = $("#x-api-url"), err = $("#x-api-err"), v = inp.value.trim().replace(/\/+$/, "");
-    var local = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(v);
-    var msg = !v ? "Enter your backend's address, e.g. https://api.example.com." : !/^https?:\/\/[^\s/?#]+\.[^\s/?#]+|^http:\/\/(localhost|127\.0\.0\.1)/i.test(v) ? "That doesn't look like a web address. It should start with https://." :
-      location.protocol === "https:" && /^http:/i.test(v) && !local ? "Use an https:// address. Browsers block http APIs on an https page." : "";
-    err.textContent = msg;
-    if (msg) { inp.setAttribute("aria-invalid", "true"); inp.focus(); return; }
-    inp.removeAttribute("aria-invalid");
-    location.href = location.pathname + "?api=" + encodeURIComponent(v) + "#/settings";
-  });
-
   /* ================= onboarding checklist ================= */
   function renderChecklist() {
     var done = { describe: S.parsed, backtest: !!S.model || S.backtests.length > 0, account: signedIn(), broker: S.connected.length > 0, paper: S.sessions.length > 0 };
@@ -1542,11 +1512,23 @@
 
   /* ================= boot ================= */
   if (API_ON) {
-    $("#x-mode-title").textContent = "Connected workspace";
-    $("#x-mode-text").textContent = "Wired to the TradeCognix API.";
+    $("#x-mode-title").textContent = "TradeCognix engine";
+    $("#x-mode-text").textContent = "Live market data via your broker. Paper trading during beta.";
   } else {
-    $("#x-save").hidden = false;
-    $("#x-run-note").textContent = "Simulated in your browser · Jan 2020 to today";
+    // No simulated fallback: without the engine nothing runs.
+    $("#x-mode-title").textContent = "Engine offline";
+    $("#x-mode-text").textContent = "Backtests and trading are unavailable right now.";
+    doc.addEventListener("click", function (e) {
+      var a = e.target.closest("#x-gen,#x-run,#x-save,#x-sweep-run,#x-cop-go,[data-cop],#x-paper,#x-golive,#x-kill,[data-connect],#tc-auth-form button[type=submit]");
+      if (!a) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      toast("The TradeCognix engine is offline. Please try again shortly.");
+    }, true);
+    doc.addEventListener("submit", function (e) {
+      if (!e.target.closest("#x-cop-form,#tc-auth-form,#x-conn-form")) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      toast("The TradeCognix engine is offline. Please try again shortly.");
+    }, true);
   }
   setTheme(theme());
   renderBrokers(); renderAccount(); renderChecklist(); setStep(); syncKill(); if (!API_ON) renderSessions();

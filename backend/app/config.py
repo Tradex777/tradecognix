@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     static_ip: str = ""
 
     # Default Angel One credentials (optional; per-user credentials are stored encrypted in DB)
+    # Backtests without a user broker use the platform's own Angel One account (ANGEL_*) for real NSE
+    # candles. Synthetic candles are only allowed when this is true (local development / tests).
+    allow_synthetic_data: bool = True
     angel_api_key: str = ""
     angel_client_code: str = ""
     angel_pin: str = ""

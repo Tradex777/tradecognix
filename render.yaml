@@ -19,13 +19,29 @@ services:
       - key: BETA_PLAN
         value: "pro"
       - key: DATABASE_URL
-        sync: false   # Supabase Postgres connection string
+        sync: false   # Supabase Postgres connection string (free); leave empty for SQLite (resets on redeploy)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: OPENAI_API_KEY
+        sync: false
       - key: FERNET_KEY
         generateValue: true   # any 32+ char secret works; the app derives a Fernet key from it
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://tradex007.github.io
+        value: https://tradex777.github.io
+      - key: ALLOW_SYNTHETIC_DATA
+        value: "false"   # real NSE candles only (platform Angel One account below)
+      - key: ANGEL_API_KEY
+        sync: false
+      - key: ANGEL_CLIENT_CODE
+        sync: false
+      - key: ANGEL_PIN
+        sync: false
+      - key: ANGEL_TOTP_SECRET
+        sync: false
       - key: ADMIN_EMAILS
         value: contact@devcognix.com
       - key: RAZORPAY_KEY_ID

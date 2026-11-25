@@ -3,8 +3,7 @@
  *
  * When window.TC_API_BASE is set, this file takes over Strategy Studio ("Generate rules",
  * "Run backtest", paper / live / kill switch) and the Brokers screen, calling the FastAPI backend.
- * When it is empty, nothing here runs and the page keeps its built-in demo behaviour (app.js).
- * If an API call fails, the click is handed back to the demo so the page never dead-ends.
+ * There is no simulated fallback: if the engine can't be reached, the user is told so.
  *
  * Rendering goes through window.TCUI (defined in app.js, loaded before this file), so demo and
  * API mode draw the same UI. Clicks are intercepted in the capture phase on document, so they run
@@ -13,7 +12,7 @@
 (function () {
   "use strict";
   var BASE = (window.TC_API_BASE || "").replace(/\/+$/, "");
-  if (!BASE) return; // demo mode
+  if (!BASE) return; // engine not configured: app.js shows "Engine offline"
 
   var doc = document;
   var $ = function (s, c) { return (c || doc).querySelector(s); };
@@ -64,9 +63,10 @@
   function limitHint(x) { return x.status === 429 || x.status === 402 ? " Create a free account or upgrade to keep going." : ""; }
 
   function fallback(el, why) {
-    console.warn("[TradeCognix] API unavailable, using demo:", why);
-    toast("API unreachable, showing demo instead");
-    state.bypass = true; el.click(); state.bypass = false;
+    console.warn("[TradeCognix] engine unavailable:", why);
+    var log = el && el.id === "x-run" ? $("#x-run-log") : $("#x-gen-log");
+    if (log) UI().setLog(log, "Couldn't reach the TradeCognix engine. Please try again in a minute.", "error");
+    toast("Engine unreachable. Please try again in a minute.");
   }
 
   /* ---------------- auth (modal lives in index.html: #tc-auth-modal) ---------------- */
@@ -174,7 +174,7 @@
 
   function onRun(e) {
     var btn = e.target.closest("#x-run");
-    if (!state.spec) { fallback(btn, "no parsed strategy"); return; }
+    if (!state.spec) { UI().setLog($("#x-run-log"), "Generate rules first, then run the backtest.", "error"); return; }
     var spec = applyEdits(state.spec);
     var done = UI().progress(btn, $("#x-run-prog"), $("#x-run-log"), ["Loading candles…", "Simulating fills with slippage…", "Applying brokerage, STT, exchange, GST, stamp duty…", "Computing metrics and whipsaws…"]);
     api("/api/backtests/run", { method: "POST", body: { strategy: spec, days: 120 } })
@@ -511,7 +511,7 @@
   }
   function loadDashboard() {
     if (!token()) {
-      $("#x-dash-sub").textContent = "Sample numbers. Create a free account and these become your own.";
+      $("#x-dash-sub").textContent = "Sign in to see your account.";
       UI().state.dash = null;
       return;
     }
@@ -603,7 +603,12 @@
       var v = (location.hash.indexOf("#/") === 0 && !$(".view[data-v='" + location.hash.slice(2) + "']:not([hidden])")) ? "" : location.hash.slice(2);
       if (v) doc.dispatchEvent(new CustomEvent("tc:view", { detail: v }));
       if (token()) api("/api/auth/me").then(function (u) { UI().renderAccount(u.email); loadSessions(); }).catch(function () {});
-    }).catch(function () { console.warn("[TradeCognix] API not reachable at " + BASE + "; demo handlers stay active on failure."); });
+    }).catch(function () {
+      console.warn("[TradeCognix] engine not reachable at " + BASE);
+      var t = $("#x-mode-title"), x = $("#x-mode-text");
+      if (t) t.textContent = "Engine starting…";
+      if (x) x.textContent = "The engine is waking up or unreachable. Actions will work once it responds.";
+    });
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot); else boot();
 

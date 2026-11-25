@@ -9,15 +9,15 @@
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="color-scheme" content="dark light" />
 
-    <link rel="canonical" href="https://tradex007.github.io/Tradecognix/" />
+    <link rel="canonical" href="https://tradex777.github.io/tradecognix/" />
 
     <!-- Open Graph / social (absolute URLs: GitHub Pages) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="TradeCognix" />
-    <meta property="og:url" content="https://tradex007.github.io/Tradecognix/" />
+    <meta property="og:url" content="https://tradex777.github.io/tradecognix/" />
     <meta property="og:title" content="TradeCognix · Plain-English algo trading for Indian traders" />
     <meta property="og:description" content="Describe a strategy in English, backtest it with real Indian costs, paper trade it, then go live through your own broker." />
-    <meta property="og:image" content="https://tradex007.github.io/Tradecognix/og.png" />
+    <meta property="og:image" content="https://tradex777.github.io/tradecognix/og.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:alt" content="TradeCognix: Write the strategy the way you'd say it. Then see what it nets after STT." />
     <meta property="og:image:width" content="1200" />
@@ -26,7 +26,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="TradeCognix · Plain-English algo trading for Indian traders" />
     <meta name="twitter:description" content="Describe a strategy in English, backtest it with real Indian costs, paper trade it, then go live through your own broker." />
-    <meta name="twitter:image" content="https://tradex007.github.io/Tradecognix/og.png" />
+    <meta name="twitter:image" content="https://tradex777.github.io/tradecognix/og.png" />
 
     <link rel="icon" type="image/svg+xml" href="mark.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
@@ -483,7 +483,7 @@
           <button class="tab tab--more" type="button" data-view="settings"><svg aria-hidden="true"><use href="#n-more" /></svg>More</button>
         </nav>
         <div class="side__foot">
-          <div class="side__demo" id="x-mode-card"><b><span class="dot-live" aria-hidden="true"></span><span id="x-mode-title">Demo workspace</span></b><span id="x-mode-text">Runs in your browser. Figures are illustrative.</span></div>
+          <div class="side__demo" id="x-mode-card"><b><span class="dot-live" aria-hidden="true"></span><span id="x-mode-title">TradeCognix engine</span></b><span id="x-mode-text">Connecting…</span></div>
           <a class="side__back" href="#top" data-back><svg width="14" height="14" aria-hidden="true" style="transform:rotate(180deg)"><use href="#i-arrow" /></svg>Back to site</a>
         </div>
       </aside>
@@ -502,23 +502,23 @@
           <!-- Dashboard -->
           <section class="view" data-v="dashboard" hidden>
             <div class="vhead">
-              <div><h1 id="x-greet">Good evening</h1><p id="x-dash-sub">Your demo portfolio at a glance. Illustrative numbers.</p></div>
+              <div><h1 id="x-greet">Good evening</h1><p id="x-dash-sub">Sign in to see your account.</p></div>
               <button class="btn btn--primary" type="button" data-view="studio"><svg aria-hidden="true"><use href="#i-plus" /></svg>New strategy</button>
             </div>
             <div class="kpis">
-              <div class="card kpi"><span id="x-k1l">Portfolio P&amp;L today</span><strong class="up" id="x-k1">+₹4,280</strong><small class="up" id="x-k1s">+0.86%</small></div>
-              <div class="card kpi"><span id="x-k2l">Active strategies</span><strong id="x-k2">3</strong><small id="x-k2s">2 paper · 1 draft</small></div>
-              <div class="card kpi"><span id="x-k3l">Open positions</span><strong id="x-k3">2</strong><small id="x-k3s">NIFTY CE · BANKNIFTY PE</small></div>
-              <div class="card kpi"><span id="x-k4l">Win rate, 30 days</span><strong id="x-k4">54.2%</strong><small class="up" id="x-k4s">+3.1 pts</small></div>
+              <div class="card kpi"><span id="x-k1l">Net P&amp;L today</span><strong id="x-k1">—</strong><small id="x-k1s">after charges</small></div>
+              <div class="card kpi"><span id="x-k2l">Saved strategies</span><strong id="x-k2">—</strong><small id="x-k2s">&nbsp;</small></div>
+              <div class="card kpi"><span id="x-k3l">Running sessions</span><strong id="x-k3">—</strong><small id="x-k3s">&nbsp;</small></div>
+              <div class="card kpi"><span id="x-k4l">Win rate, 30 days</span><strong id="x-k4">—</strong><small id="x-k4s">&nbsp;</small></div>
             </div>
             <div class="dash">
               <div style="display:grid;gap:16px;min-width:0">
                 <div class="panel">
-                  <div class="panel__head"><h3 id="x-dash-h">Equity, last 30 sessions</h3><span class="note" id="x-dash-note">Demo account · ₹5,00,000 start</span></div>
+                  <div class="panel__head"><h3 id="x-dash-h">Cumulative net P&amp;L</h3><span class="note" id="x-dash-note">Paper and live trades · after charges</span></div>
                   <div class="panel__body">
-                    <p class="cap" id="x-dash-cap">Equity rose from ₹5.00 L to ₹5.39 L over 30 sessions<small>Closing equity · illustrative</small></p>
-                    <p class="hint" id="x-dash-empty" hidden></p>
-                    <div class="chartbox" id="x-dash-box"><canvas id="x-dash-chart" role="img" aria-label="Demo equity rose from 5 lakh to about 5.39 lakh rupees over 30 sessions"></canvas></div>
+                    <p class="cap" id="x-dash-cap" hidden></p>
+                    <p class="hint" id="x-dash-empty">This chart starts after your first closed paper trade.</p>
+                    <div class="chartbox" id="x-dash-box" hidden><canvas id="x-dash-chart" role="img" aria-label="Cumulative net P&amp;L"></canvas></div>
                   </div>
                 </div>
                 <div class="panel">
@@ -527,9 +527,7 @@
                     <table class="tbl tbl--min">
                       <thead><tr><th scope="col">Strategy</th><th scope="col">Status</th><th scope="col" class="r">Today P&amp;L</th><th scope="col" class="r">Trades</th></tr></thead>
                       <tbody id="x-dash-strats">
-                        <tr><td>9/21 EMA Crossover<span class="sub">NIFTY · 15m</span></td><td><span class="badge badge--paper">Paper</span></td><td class="r up">+₹3,120</td><td class="r">2</td></tr>
-                        <tr><td>ORB Nifty<span class="sub">09:15–09:30 range</span></td><td><span class="badge">Draft</span></td><td class="r faint">—</td><td class="r">0</td></tr>
-                        <tr><td>Short Straddle 09:20<span class="sub">BANKNIFTY</span></td><td><span class="badge badge--paper">Paper</span></td><td class="r up">+₹1,160</td><td class="r">1</td></tr>
+                        <tr><td colspan="4" class="faint">No saved strategies yet.</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -554,7 +552,7 @@
             <div class="vhead">
               <div><h1>Strategy Studio</h1><p>Describe it in plain English. Review the rules. Backtest with real Indian costs.</p></div>
               <button class="linkbtn" type="button" id="x-guide-show" hidden>Show guide</button>
-              <span class="badge badge--plain" id="x-engine-note">Rule-based parser · demo</span>
+              <span class="badge badge--plain" id="x-engine-note">TradeCognix engine</span>
             </div>
             <ol class="flow" id="x-flow" aria-label="Progress">
               <li data-step="1"><b>1</b><span>Describe</span><small>&nbsp;· plain English</small></li>
@@ -576,22 +574,9 @@
                   <div class="panel__body">
                     <label class="label" for="x-input">Describe your strategy</label>
                     <div class="prompt-wrap" style="margin-top:8px">
-                      <textarea id="x-input" class="textarea" maxlength="600" spellcheck="false" aria-describedby="x-input-hint" placeholder="e.g. Buy Nifty ATM call when 9 EMA crosses above 21 EMA on 15-min candles after 9:30 AM. Exit on opposite cross or 3:15 PM. Max 2 trades a day.">Buy Nifty ATM call when 9 EMA crosses above 21 EMA on 15-min candles after 9:30 AM. Exit on opposite cross or 3:15 PM. Max 2 trades a day.</textarea>
+                      <textarea id="x-input" class="textarea" maxlength="600" spellcheck="false" aria-describedby="x-input-hint" placeholder="e.g. Buy Nifty ATM call when 9 EMA crosses above 21 EMA on 15-min candles after 9:30 AM. Exit on opposite cross or 3:15 PM. Max 2 trades a day."></textarea>
                     </div>
                     <div class="prompt-meta"><span class="hint" id="x-input-hint" aria-live="polite">Include instrument, entry, exit and a risk limit.</span><span class="hint num" id="x-count">0/600</span></div>
-                    <div class="tpls" role="group" aria-labelledby="x-tpl-label">
-                      <p class="tpls__label" id="x-tpl-label">Start from a template</p>
-                      <div class="tpls__grid">
-                      <button class="tpl" type="button" data-ex="Sell BankNifty ATM straddle at 9:20 AM on 5-min candles. Stop loss 25% on each leg. Exit everything at 3:10 PM. Max 1 trade a day." data-tpl="straddle"><span class="tpl__name">BankNifty 9:20 straddle</span><span class="tpl__desc">Sell both ATM legs at 9:20, 25% stop on each.</span><span class="tpl__tags">BankNifty · 5m · Options sell</span></button>
-                      <button class="tpl" type="button" data-ex="Buy Nifty futures when 9 EMA crosses above 21 EMA on 15-min candles after 9:30 AM. Exit on opposite cross or 3:15 PM. Max 2 trades a day." data-tpl="ema"><span class="tpl__name">9/21 EMA cross</span><span class="tpl__desc">Ride Nifty futures on a 15-minute trend change.</span><span class="tpl__tags">Nifty · 15m · Futures</span></button>
-                      <button class="tpl" type="button" data-ex="Buy Nifty ATM call when price breaks above the 9:15 to 9:30 opening range on 5-min candles. Stop loss 1%, target 2%. Exit by 3:15 PM. Max 1 trade a day." data-tpl="orb"><span class="tpl__name">Opening range breakout</span><span class="tpl__desc">Buy the ATM call when price clears the first 15 minutes.</span><span class="tpl__tags">Nifty · 5m · Options buy</span></button>
-                      <button class="tpl" type="button" data-ex="Buy BankNifty futures when Supertrend 10,3 turns green on 5-min candles. Exit when Supertrend turns red or at 3:15 PM. Max 2 trades a day." data-tpl="st"><span class="tpl__name">Supertrend 10,3</span><span class="tpl__desc">Follow Supertrend flips on BankNifty futures.</span><span class="tpl__tags">BankNifty · 5m · Futures</span></button>
-                      <button class="tpl" type="button" data-ex="Buy Reliance when RSI 14 drops below 30 on daily candles and sell when RSI crosses above 70. Stop loss 8%." data-tpl="rsi"><span class="tpl__name">RSI 30/70 swing</span><span class="tpl__desc">Buy Reliance when oversold, sell when overbought.</span><span class="tpl__tags">Reliance · Daily · Equity</span></button>
-                      <button class="tpl" type="button" data-ex="Sell Nifty strangle 2 strikes out of the money at 9:30 AM on 5-min candles. Stop loss 30% on each leg. Exit at 3:15 PM. Max 1 trade a day." data-tpl="ic"><span class="tpl__name">9:30 short strangle</span><span class="tpl__desc">Sell Nifty 2 strikes out of the money, 30% stop on each leg.</span><span class="tpl__tags">Nifty · 5m · Options sell</span></button>
-                      <button class="tpl" type="button" data-ex="Buy HDFC Bank when price pulls back to VWAP on 5-min candles after 10:00 AM while above 21 EMA. Stop loss 0.5%, target 1%. Exit at 3:15 PM. Max 2 trades a day." data-tpl="vwap"><span class="tpl__name">VWAP pullback</span><span class="tpl__desc">Buy HDFC Bank dips to VWAP while it trends up.</span><span class="tpl__tags">HDFC Bank · 5m · Equity</span></button>
-                      <button class="tpl" type="button" data-ex="Sell BankNifty futures when price crosses below VWAP while below 21 EMA on 5-min candles after 9:45 AM. Stop loss 0.4%, target 0.8%. Exit at 3:15 PM. Max 2 trades a day." data-tpl="gap"><span class="tpl__name">VWAP breakdown short</span><span class="tpl__desc">Sell BankNifty futures when price slips under VWAP in a downtrend.</span><span class="tpl__tags">BankNifty · 5m · Futures</span></button>
-                      </div>
-                    </div>
                     <div class="studio__actions">
                       <button class="btn btn--primary" type="button" id="x-gen">Generate rules <kbd class="kbd-mod">Ctrl ↵</kbd></button>
                       <button class="btn btn--ghost btn--sm" type="button" id="x-clear">Clear</button>
@@ -609,7 +594,7 @@
                     <div class="studio__actions">
                       <button class="btn btn--primary" type="button" id="x-run">Run backtest <kbd class="kbd-mod">Ctrl ↵</kbd></button>
                       <button class="btn btn--secondary btn--sm" type="button" id="x-save" hidden>Save strategy</button>
-                      <span class="note" id="x-run-note">Practice prices · last 120 days</span>
+                      <span class="note" id="x-run-note">Last 120 days · after all charges</span>
                     </div>
                     <div class="progress" id="x-run-prog"><i></i></div>
                     <p class="steplog" id="x-run-log" aria-live="polite"></p>
@@ -783,23 +768,9 @@
             <div class="panel">
               <div class="set-row"><div><h3>Appearance</h3><p>Dark is the default. Your choice is remembered on this device.</p></div>
                 <div class="seg" role="group" aria-label="Theme"><button type="button" data-theme-set="dark" aria-pressed="true">Dark</button><button type="button" data-theme-set="light" aria-pressed="false">Light</button></div></div>
-              <div class="set-row"><div><h3>Account</h3><p id="x-acct-text">Not signed in. Backtests work without an account.</p></div><button class="btn btn--secondary btn--sm" type="button" id="x-acct-btn" data-auth-open>Create free account</button></div>
-              <div class="set-row"><div><h3>Backend</h3><p id="x-api-text">Demo mode: everything runs in your browser.</p></div><span class="badge" id="x-api-badge">Demo</span></div>
-              <div class="set-row set-api" id="x-api-connect" hidden>
-                <div class="set-api__copy">
-                  <h3>Connect your backend</h3>
-                  <p>This site is running in demo mode. Deploy the TradeCognix API, then open the site with <code>?api=https://your-api</code>. The address is remembered on this device; <code>?api=off</code> switches back to the demo. To make it permanent for everyone, set <code>TC_API_BASE</code> in <code>js/config.js</code>.</p>
-                  <a class="set-api__link" href="https://github.com/Tradex007/Tradecognix#deploying-for-free" target="_blank" rel="noopener">Deployment guide in the README<svg aria-hidden="true"><use href="#i-arrow" /></svg></a>
-                </div>
-                <form class="set-api__form" id="x-api-form" novalidate>
-                  <label class="sr-only" for="x-api-url">Backend URL</label>
-                  <input class="input" id="x-api-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-api.example.com" aria-describedby="x-api-err" />
-                  <button class="btn btn--secondary btn--sm" type="submit">Connect</button>
-                  <p class="hint is-error" id="x-api-err" aria-live="polite"></p>
-                </form>
-              </div>
+              <div class="set-row"><div><h3>Account</h3><p id="x-acct-text">Not signed in.</p></div><button class="btn btn--secondary btn--sm" type="button" id="x-acct-btn" data-auth-open>Create free account</button></div>
+              <div class="set-row"><div><h3>Backend</h3><p id="x-api-text">Checking the engine…</p></div><span class="badge" id="x-api-badge">…</span></div>
               <div class="set-row"><div><h3>More</h3><p>Every screen in the workspace.</p></div><div class="btns"><button class="btn btn--secondary btn--sm" type="button" data-view="backtests">Backtests</button><button class="btn btn--secondary btn--sm" type="button" data-view="journal">Journal</button><a class="btn btn--ghost btn--sm" href="#top" data-back>Back to site</a></div></div>
-              <div class="set-row"><div><h3>Reset demo</h3><p>Clear demo sign-in, broker connections, sessions and backtests on this device.</p></div><button class="btn btn--danger-outline btn--sm" type="button" id="x-reset">Reset demo data</button></div>
             </div>
           </section>
 
@@ -897,7 +868,7 @@
     <div class="modal" id="x-conn-modal" hidden role="dialog" aria-modal="true" aria-labelledby="x-conn-title">
       <form class="modal__box" id="x-conn-form" novalidate>
         <h3 id="x-conn-title">Connect broker</h3>
-        <p id="x-conn-intro">Demo only: nothing you type here leaves your browser.</p>
+        <p id="x-conn-intro">Your credentials are encrypted before they are stored and are only used to place your orders.</p>
         <div id="x-conn-fields" style="display:grid;gap:12px"></div>
         <p class="note">Encrypted at rest. Live orders only through routes your broker allows.</p>
         <div class="modal__actions">
@@ -909,9 +880,6 @@
 
     <div class="toast" id="x-toast" role="status" aria-live="polite"></div>
 
-    <script type="application/json" id="x-equity-data">
-      [500000,501200,499800,503400,505100,504200,507900,506300,510800,512400,511000,514700,513200,517900,520300,518600,522100,524800,523000,527400,526100,529800,531500,529900,533200,535700,534100,536900,535200,538600]
-    </script>
 
     <!-- Backend wiring: set window.TC_API_BASE in js/config.js (or open with ?api=https://your-api). Empty = demo mode. -->
     <script src="js/config.js"></script>

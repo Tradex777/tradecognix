@@ -84,3 +84,14 @@ def test_unsupported_features_say_so(text, word):
 def test_unsupported_extra_is_warned_not_silently_dropped():
     res = P.parse("Buy Nifty call when 9 EMA crosses above 21 EMA and MACD is positive on 15 min")
     assert any("MACD" in w for w in res.warnings) and res.confidence < 0.9
+
+
+def test_backtest_refuses_synthetic_when_disabled(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.config import get_settings
+    from app.main import app
+
+    monkeypatch.setattr(get_settings(), "allow_synthetic_data", False)
+    r = TestClient(app).post("/api/backtests/run", json={"text": "Buy Nifty call when 9 EMA crosses above 21 EMA on 15 min"})
+    assert r.status_code == 503 and "market data" in r.json()["detail"]

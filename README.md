@@ -2,7 +2,7 @@
 
 **Plain-English algorithmic trading for Indian brokers.** Describe a strategy the way you would say it out loud ("Buy Nifty ATM call when 9 EMA crosses above 21 EMA on 15-min candles after 9:30 AM, exit on opposite cross or 3:15 PM, max 2 trades a day"). TradeCognix turns it into structured rules, backtests it with real Indian costs, paper-trades it, and only then, with explicit server-side and in-app confirmation, places orders through **your own** broker account.
 
-**Live site:** https://tradex007.github.io/Tradecognix/ (demo mode, runs in the browser) · admin console at [/admin/](https://tradex007.github.io/Tradecognix/admin/)
+**Live site:** https://tradex777.github.io/tradecognix/ (demo mode, runs in the browser) · admin console at [/admin/](https://tradex777.github.io/tradecognix/admin/)
 
 > © 2026 DevCognix. Proprietary, see [LICENSE](LICENSE). Contact: contact@devcognix.com · +91 901 908 8160
 
@@ -169,9 +169,9 @@ The Razorpay billing code is kept but dormant: `POST /api/billing/checkout` retu
 
 ### One-click backend on Render (paper / demo)
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Tradex007/Tradecognix)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Tradex777/tradecognix)
 
-The button reads `render.yaml`: a Docker web service built from `backend/Dockerfile`, health-checked on `/health`, with `ENVIRONMENT=production`, `LIVE_TRADING_ENABLED=false`, generated `JWT_SECRET` / `FERNET_KEY`, and `CORS_ORIGINS=https://tradex007.github.io`. Render asks for the values marked `sync: false`:
+The button reads `render.yaml`: a Docker web service built from `backend/Dockerfile`, health-checked on `/health`, with `ENVIRONMENT=production`, `LIVE_TRADING_ENABLED=false`, generated `JWT_SECRET` / `FERNET_KEY`, and `CORS_ORIGINS=https://tradex777.github.io`. Render asks for the values marked `sync: false`:
 
 - `DATABASE_URL`: your Supabase Postgres connection string. Leave it blank only for a throwaway demo: the app then falls back to SQLite inside the container, which is wiped on every redeploy and free-tier spin-down.
 - `RAZORPAY_*`: leave blank during the beta (billing answers 503 until they are set).

@@ -12,6 +12,7 @@ from ..backtest.costs import CostConfig
 from ..backtest.engine import run_backtest
 from ..backtest.sweep import sweep
 from ..billing.plans import check_backtest_quota, record_usage, require_feature
+from ..config import get_settings
 from ..data.candles import TF_MINUTES, base_timeframe_for, resample, synthetic_bar_minutes
 from ..data.synthetic import generate_candles
 from ..db import get_session
@@ -91,10 +92,53 @@ def _base_candles(body: BacktestIn, s: Strategy, user: Optional[User], db: Sessi
             raise
         except Exception as e:
             raise HTTPException(502, f"Could not load candles from {acc.broker}: {scrub(str(e), _creds_of(acc))[:300]}")
+    platform = _platform_feed()
+    if platform is not None:
+        try:
+            matches = [] if s.is_index else platform.search_instruments(s.underlying)
+            if not s.is_index and not matches:
+                raise HTTPException(422, f"No NSE instrument matches {s.underlying}")
+            inst = platform.index_instrument(s.underlying) if s.is_index else matches[0]
+            end = ist_now()
+            df = platform.historical_candles(inst, base_timeframe_for(s.timeframe), end - timedelta(days=int(body.days * 1.5)), end)
+            if df is None or df.empty:
+                raise HTTPException(502, f"No candles returned for {s.underlying}")
+            return df, "broker"
+        except HTTPException:
+            raise
+        except Exception as e:
+            _reset_platform_feed()
+            raise HTTPException(502, f"Market data is temporarily unavailable: {scrub(str(e), _platform_creds())[:200]}")
+    if not get_settings().allow_synthetic_data:
+        raise HTTPException(503, "Real market data isn't configured on this server yet. Connect your Angel One account under Brokers to backtest on NSE data.")
     bar_minutes = synthetic_bar_minutes(s.timeframe)
     if bar_minutes == 1 and body.days > 120:
         raise HTTPException(422, "1/3-minute synthetic backtests are limited to 120 days")
     return generate_candles(s.underlying, days=body.days, seed=body.seed, bar_minutes=bar_minutes), "synthetic"
+
+
+_PLATFORM = {"adapter": None}
+
+
+def _platform_creds() -> dict:
+    st = get_settings()
+    return {"api_key": st.angel_api_key, "client_code": st.angel_client_code, "pin": st.angel_pin, "totp_secret": st.angel_totp_secret}
+
+
+def _platform_feed():
+    """The platform's own Angel One login, reused across requests, or None when not configured."""
+    c = _platform_creds()
+    if not all(c.values()):
+        return None
+    if _PLATFORM["adapter"] is None:
+        from ..brokers.angelone import AngelOneAdapter
+
+        _PLATFORM["adapter"] = AngelOneAdapter(c)
+    return _PLATFORM["adapter"]
+
+
+def _reset_platform_feed() -> None:
+    _PLATFORM["adapter"] = None
 
 
 def _creds_of(acc) -> dict:

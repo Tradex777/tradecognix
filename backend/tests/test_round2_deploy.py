@@ -33,7 +33,7 @@ def test_render_blueprint_points_at_real_things(client):
     assert (ROOT / svc["dockerContext"].lstrip("./")).resolve() == BACKEND
     assert client.get(svc["healthCheckPath"]).status_code == 200
     env = _env(svc)
-    assert "https://tradex007.github.io" in env["CORS_ORIGINS"]["value"].split(",")
+    assert "https://tradex777.github.io" in env["CORS_ORIGINS"]["value"].split(",")
     assert env["ENVIRONMENT"]["value"] == "production"
     assert env["LIVE_TRADING_ENABLED"]["value"] == "false"
     assert env["JWT_SECRET"].get("generateValue") and env["FERNET_KEY"].get("generateValue")
@@ -81,7 +81,7 @@ def test_uvicorn_boots_in_production_and_health_is_200(tmp_path):
     env = {
         **os.environ, "PYTHONPATH": str(BACKEND), "SCHEDULER_ENABLED": "true", "GEMINI_API_KEY": "", "OPENAI_BASE_URL": "",
         "ENVIRONMENT": "production", "JWT_SECRET": secrets.token_urlsafe(48), "FERNET_KEY": gen,
-        "CORS_ORIGINS": "https://tradex007.github.io", "DATABASE_URL": "", "TRUST_PROXY_HEADERS": "true",
+        "CORS_ORIGINS": "https://tradex777.github.io", "DATABASE_URL": "", "TRUST_PROXY_HEADERS": "true",
         "LIVE_TRADING_ENABLED": "false", "BETA_PLAN": "pro",
     }
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port), "--workers", "1"],
@@ -101,8 +101,8 @@ def test_uvicorn_boots_in_production_and_health_is_200(tmp_path):
         assert r.json()["ok"] is True
         assert r.headers.get("strict-transport-security")  # production headers on
         pre = httpx.options(f"http://127.0.0.1:{port}/api/strategies/copilot", trust_env=False, headers={
-            "Origin": "https://tradex007.github.io", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"})
-        assert pre.headers.get("access-control-allow-origin") == "https://tradex007.github.io"
+            "Origin": "https://tradex777.github.io", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"})
+        assert pre.headers.get("access-control-allow-origin") == "https://tradex777.github.io"
     finally:
         proc.terminate()
         proc.wait(timeout=10)
