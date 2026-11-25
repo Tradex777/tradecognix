@@ -63,9 +63,10 @@ class AngelOneAdapter(BrokerAdapter):
             from SmartApi import SmartConnect
         except ImportError as e:
             raise BrokerError("Install broker SDKs: pip install -r requirements-brokers.txt") from e
-        api = SmartConnect(api_key=self.credentials["api_key"])
-        totp = pyotp.TOTP(self.credentials["totp_secret"].replace(" ", "")).now()
-        data = api.generateSession(self.credentials["client_code"], self.credentials["pin"], totp)
+        c = {k: str(self.credentials[k]).strip() for k in ("api_key", "client_code", "pin", "totp_secret")}
+        api = SmartConnect(api_key=c["api_key"])
+        totp = pyotp.TOTP("".join(c["totp_secret"].split()).upper()).now()
+        data = api.generateSession(c["client_code"].upper(), c["pin"], totp)
         if not data or not data.get("status"):
             raise BrokerError(f"Angel One login failed: {(data or {}).get('message', 'unknown error')}")
         self._api = api
