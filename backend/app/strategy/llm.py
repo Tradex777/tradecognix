@@ -19,6 +19,10 @@ strategy into a JSON object that matches the given JSON Schema exactly. Rules:
 - Times are 24h "HH:MM" IST. "3:15" during market hours means "15:15".
 - Indicator ids are referenced in conditions: e.g. {"id":"ema9","kind":"ema","period":9}.
 - Supertrend direction is "<id>.dir" (+1 green/-1 red); opening range is "<id>.high"/"<id>.low".
+- MACD: {"id":"macd","kind":"macd"} (period=fast 12, slow 26, signal 9); "macd" is the line, "macd.signal", "macd.hist".
+- Bollinger: {"id":"bb","kind":"bollinger","period":20,"multiplier":2}; "bb" is the middle band, "bb.upper", "bb.lower".
+- Previous day: {"id":"pd","kind":"prevday"}; "pd.high", "pd.low", "pd.close".
+- Extra filters ("and RSI > 55", "while above VWAP") are additional conditions in the same entry list (logic "all").
 - Fixed-time entries use {"left":"time","op":"at_time","right":"09:20"}.
 - direction: long (bullish), short (bearish), both, or neutral (straddles/strangles).
 - Option modes: atm_buy, itm_buy, otm_buy, atm_sell, itm_sell, otm_sell, straddle_buy, straddle_sell,

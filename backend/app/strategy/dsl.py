@@ -6,7 +6,9 @@ Operands in conditions are either numbers or references:
   close | open | high | low | hl2           price fields of the signal timeframe
   <indicator id>                            e.g. "ema9", "rsi14", "vwap", "st"
   <indicator id>.dir                        supertrend direction (+1 green / -1 red)
-  <indicator id>.high | <indicator id>.low  opening-range high / low
+  <indicator id>.high | <indicator id>.low  opening-range / previous-day high / low (prevday also .close)
+  <indicator id>.signal | .hist             MACD signal line / histogram (<id> alone is the MACD line)
+  <indicator id>.upper | .lower             Bollinger bands (<id> alone is the middle band)
   time                                      with op "at_time" and a "HH:MM" right operand
 """
 from __future__ import annotations
@@ -50,10 +52,12 @@ class IndicatorSpec(BaseModel):
             raise ValueError(f"indicator id {v!r} must be a short identifier (letters, digits, _) and not a price field")
         return v
 
-    kind: Literal["ema", "sma", "rsi", "vwap", "atr", "supertrend", "orb", "adx"]
+    kind: Literal["ema", "sma", "rsi", "vwap", "atr", "supertrend", "orb", "adx", "macd", "bollinger", "prevday"]
     period: Optional[int] = Field(None, ge=1, le=500)
     multiplier: Optional[float] = Field(None, gt=0, le=20)
     source: Literal["close", "open", "high", "low", "hl2"] = "close"
+    slow: Optional[int] = Field(None, ge=2, le=500)  # macd slow EMA
+    signal: Optional[int] = Field(None, ge=1, le=100)  # macd signal EMA
     start: Optional[str] = None  # orb window start
     end: Optional[str] = None  # orb window end
 
@@ -68,6 +72,15 @@ class IndicatorSpec(BaseModel):
         if self.kind == "supertrend":
             self.period = self.period or 10
             self.multiplier = self.multiplier or 3.0
+        if self.kind == "macd":
+            self.period = self.period or 12
+            self.slow = self.slow or 26
+            self.signal = self.signal or 9
+            if self.slow <= self.period:
+                raise ValueError("MACD slow period must be longer than the fast period")
+        if self.kind == "bollinger":
+            self.period = self.period or 20
+            self.multiplier = self.multiplier or 2.0
         if self.kind == "orb":
             self.start = _check_time(self.start or "09:15")
             self.end = _check_time(self.end or "09:30")
@@ -107,7 +120,14 @@ class Condition(BaseModel):
         right = self.right
         if isinstance(right, (int, float)) and self.left.startswith("rsi"):
             right = 100 - float(right)
-        return Condition(left=self.left, op=swap[self.op], right=right)
+        side = {"upper": "lower", "lower": "upper", "high": "low", "low": "high"}
+
+        def flip(x):  # "close crosses above bb.upper" mirrors to "close crosses below bb.lower"
+            if isinstance(x, str) and "." in x:
+                base, _, attr = x.partition(".")
+                return f"{base}.{side.get(attr, attr)}"
+            return x
+        return Condition(left=flip(self.left), op=swap[self.op], right=flip(right))
 
 
 class EntryRules(BaseModel):

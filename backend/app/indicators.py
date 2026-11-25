@@ -173,6 +173,27 @@ def opening_range(df: pd.DataFrame, start: str = "09:15", end: str = "09:30") ->
     return pd.DataFrame({"high": hi.where(avail), "low": lo.where(avail)}, index=df.index)
 
 
+def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
+    """MACD line (fast EMA - slow EMA), signal line (EMA of MACD) and histogram, as TradingView."""
+    line = ema(series, fast) - ema(series, slow)
+    sig = ema(line, signal)
+    return pd.DataFrame({"macd": line, "signal": sig, "hist": line - sig}, index=series.index)
+
+
+def bollinger(series: pd.Series, period: int = 20, mult: float = 2.0) -> pd.DataFrame:
+    """Bollinger Bands: SMA mid with bands at +/- mult population standard deviations (TradingView)."""
+    mid = series.rolling(period, min_periods=period).mean()
+    sd = series.rolling(period, min_periods=period).std(ddof=0)
+    return pd.DataFrame({"mid": mid, "upper": mid + mult * sd, "lower": mid - mult * sd}, index=series.index)
+
+
+def previous_day(df: pd.DataFrame) -> pd.DataFrame:
+    """Previous session's high, low and close on every bar of the current session."""
+    day = df.index.normalize()
+    daily = df.groupby(day).agg(high=("high", "max"), low=("low", "min"), close=("close", "last")).shift(1)
+    return daily.reindex(day).set_axis(df.index)
+
+
 def crossed_above(a: pd.Series, b: pd.Series | float) -> pd.Series:
     """True on the bar where a moves from <= b to > b. NaN on either bar -> False."""
     b_s = b if isinstance(b, pd.Series) else pd.Series(b, index=a.index)

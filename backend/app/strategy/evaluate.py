@@ -42,6 +42,21 @@ def compute_indicators(df: pd.DataFrame, strategy: Strategy) -> pd.DataFrame:
             st = ind.supertrend(out, spec.period, spec.multiplier)
             out[spec.id] = st["supertrend"]
             out[f"{spec.id}.dir"] = st["direction"]
+        elif spec.kind == "macd":
+            m = ind.macd(src, spec.period, spec.slow, spec.signal)
+            out[spec.id] = m["macd"]
+            out[f"{spec.id}.signal"] = m["signal"]
+            out[f"{spec.id}.hist"] = m["hist"]
+        elif spec.kind == "bollinger":
+            b = ind.bollinger(src, spec.period, spec.multiplier)
+            out[spec.id] = b["mid"]
+            out[f"{spec.id}.upper"] = b["upper"]
+            out[f"{spec.id}.lower"] = b["lower"]
+        elif spec.kind == "prevday":
+            pdl = ind.previous_day(out)
+            for col in ("high", "low", "close"):
+                out[f"{spec.id}.{col}"] = pdl[col]
+            out[spec.id] = pdl["close"]
         elif spec.kind == "orb":
             orb = ind.opening_range(out, spec.start, spec.end)
             out[f"{spec.id}.high"] = orb["high"]

@@ -231,6 +231,19 @@ class RuleBasedParser:
         ma_list = [("sma" if k == "dma" else k, p) for k, p in ma_list]
 
         orb = re.search(r"opening range|\borb\b|first (\d+) min", t)
+        macd_m = re.search(r"\bmacd\b", t)
+        bb_m = re.search(r"bollinger|\bbb\b", t)
+        pd_m = re.search(r"(?:previous|prev|yesterday'?s?|last)\s*(?:day'?s?|session'?s?)?\s*(high|low|close)|\bpd([hl])\b", entry_part)
+
+        def bias() -> str:
+            return direction or ("short" if verb_short and instrument_type != "option" else "long")
+
+        def attach(stated: Condition) -> str:
+            """Put the user's stated condition on the side the trade implies; mirror it on the other."""
+            b = bias()
+            (short_c if b == "short" else long_c).append(stated)
+            (long_c if b == "short" else short_c).append(stated.mirrored())
+            return b
         rsi_m = re.search(r"\brsi\s*\(?\s*(\d{1,2})?\)?", t)
         st_m = re.search(r"super\s?trend\s*\(?\s*(\d{1,2})?\s*[,/ ]\s*(\d+(?:\.\d+)?)?", t)
         vwap_m = re.search(r"\bvwap\b", t)
@@ -268,6 +281,32 @@ class RuleBasedParser:
                     direction = "short"
                 else:
                     direction = "both"
+        elif macd_m and re.search(r"macd[^.]{0,40}?(cross|above|below|over|under|positive|negative|bullish|bearish|turns)", entry_part):
+            primary = "macd"
+            mid = add_ind(IndicatorSpec(id="macd", kind="macd"))
+            seg = entry_part[macd_m.start(): macd_m.start() + 60]
+            down = re.search(r"below|under|negative|bearish|down", seg)
+            if re.search(r"zero|\b0\b|centre|center", seg):
+                direction = attach(Condition(left=mid, op="crosses_below" if down else "crosses_above", right=0.0))
+            else:
+                direction = attach(Condition(left=mid, op="crosses_below" if down else "crosses_above", right=f"{mid}.signal"))
+        elif bb_m:
+            primary = "bollinger"
+            per = re.search(r"bollinger[^.]{0,12}?(\d{1,3})\s*[,/ ]\s*(\d(?:\.\d)?)", t)
+            bid = add_ind(IndicatorSpec(id="bb", kind="bollinger", period=int(per.group(1)) if per else 20, multiplier=float(per.group(2)) if per else 2.0))
+            band = "lower" if re.search(r"lower", entry_part) else "upper" if re.search(r"upper", entry_part) else ("upper" if bias() == "short" else "lower")
+            # touching/closing outside the upper band = crossing above it; the lower band = crossing below it
+            op = "crosses_above" if band == "upper" else "crosses_below"
+            if re.search(r"back (inside|above|below)|re-?enter", entry_part):
+                op = "crosses_below" if band == "upper" else "crosses_above"
+            direction = attach(Condition(left="close", op=op, right=f"{bid}.{band}"))
+        elif pd_m:
+            primary = "prevday"
+            pid = add_ind(IndicatorSpec(id="pd", kind="prevday"))
+            lvl = pd_m.group(1) or {"h": "high", "l": "low"}[pd_m.group(2)]
+            seg = entry_part[max(0, pd_m.start() - 30): pd_m.start()]
+            down = re.search(r"below|under|breaks? down|breakdown", seg) or (lvl == "low" and not re.search(r"above|over", seg))
+            direction = attach(Condition(left="close", op="crosses_below" if down else "crosses_above", right=f"{pid}.{lvl}"))
         elif rsi_m and re.search(r"rsi[^.]*?(below|under|above|over|crosses|<|>)\s*(\d{1,2})", entry_part):
             primary = "rsi"
             period = int(rsi_m.group(1) or 14)
@@ -342,6 +381,18 @@ class RuleBasedParser:
                 period = int(m.group(1) or 14)
                 aid = add_ind(IndicatorSpec(id=f"adx{period}", kind="adx", period=period))
                 add_filter(Condition(left=aid, op="gt" if m.group(2) in ("above", "over", ">", ">=") else "lt", right=float(m.group(3))))
+            if primary != "macd" and macd_m:
+                m = re.search(r"macd\s*(?:line\s*)?(?:is\s*)?(positive|above\s*(?:zero|0)|bullish|above\s*(?:the\s*)?signal|negative|below\s*(?:zero|0)|bearish|below\s*(?:the\s*)?signal)", entry_part)
+                if m:
+                    mid = add_ind(IndicatorSpec(id="macd", kind="macd"))
+                    up = re.search(r"positive|above|bullish", m.group(1))
+                    right = f"{mid}.signal" if "signal" in m.group(1) else 0.0
+                    add_filter(Condition(left=mid, op="gt" if up else "lt", right=right))
+            if primary != "prevday":
+                m = re.search(r"(above|over|below|under)\s+(?:the\s+)?(?:previous|prev|yesterday'?s?)\s*(?:day'?s?)?\s*(high|low|close)", entry_part)
+                if m:
+                    pid = add_ind(IndicatorSpec(id="pd", kind="prevday"))
+                    add_filter(Condition(left="close", op="gt" if m.group(1) in ("above", "over") else "lt", right=f"{pid}.{m.group(2)}"))
             if primary in ("ma",) and len(ma_list) >= 3:
                 m = re.search(r"(above|over|below|under)\s+(?:the\s+)?(\d{1,3})\s*-?\s*(ema|sma|dma)", entry_part)
                 if m:
@@ -350,9 +401,9 @@ class RuleBasedParser:
                     add_filter(Condition(left="close", op="gt" if m.group(1) in ("above", "over") else "lt", right=mid))
 
         # ---- things we can read but not run yet: say so instead of silently ignoring them ----
-        UNSUPPORTED = [(r"\bmacd\b", "MACD"), (r"bollinger|\bbb\b", "Bollinger Bands"), (r"stochastic", "Stochastic"),
-                       (r"(previous|prev|yesterday'?s?)\s*(day'?s?\s*)?(high|low|close)|\bpd[hl]\b", "previous-day levels"),
-                       (r"52\s*-?\s*week", "52-week levels"), (r"iron\s*(condor|fly|butterfly)", "iron condors / flies"),
+        used = {i.kind for i in indicators}
+        UNSUPPORTED = [(r"\bmacd\b", "MACD") if "macd" not in used else (r"(?!)", ""),
+                       (r"stochastic", "Stochastic"), (r"52\s*-?\s*week", "52-week levels"), (r"iron\s*(condor|fly|butterfly)", "iron condors / flies"),
                        (r"\bcpr\b|pivot", "pivot / CPR levels"), (r"\bgap\s*(up|down)", "gap rules")]
         unsupported = [label for pat, label in UNSUPPORTED if re.search(pat, t)]
 

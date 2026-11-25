@@ -27,6 +27,13 @@ def operand_words(s: Strategy, x) -> str:
         return f"the {spec.start}-{spec.end} opening-range {attr or 'mid'}"
     if spec.kind == "vwap":
         return "VWAP"
+    if spec.kind == "macd":
+        name = f"MACD ({spec.period},{spec.slow},{spec.signal})"
+        return {"signal": f"the {name} signal line", "hist": f"the {name} histogram"}.get(attr, f"the {name} line")
+    if spec.kind == "bollinger":
+        return {"upper": "the upper", "lower": "the lower"}.get(attr, "the middle") + f" Bollinger Band ({spec.period},{spec.multiplier:g})"
+    if spec.kind == "prevday":
+        return f"the previous day's {attr or 'close'}"
     return f"{spec.kind.upper()} {spec.period}"
 
 

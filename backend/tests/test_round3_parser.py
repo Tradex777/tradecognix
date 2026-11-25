@@ -71,10 +71,8 @@ def test_exit_when_crosses_below_needs_no_warning():
 
 
 @pytest.mark.parametrize("text,word", [
-    ("Buy Nifty when MACD crosses above signal line on 15 min", "MACD"),
-    ("Short Nifty futures when Bollinger band upper is touched", "Bollinger"),
-    ("Buy Nifty put when price closes below previous day low", "previous-day"),
     ("Nifty 9:20 iron condor with 100 point wings", "iron condor"),
+    ("Buy Nifty when stochastic crosses above 20 on 5 min", "Stochastic"),
 ])
 def test_unsupported_features_say_so(text, word):
     with pytest.raises(ValueError, match=word):
@@ -82,8 +80,45 @@ def test_unsupported_features_say_so(text, word):
 
 
 def test_unsupported_extra_is_warned_not_silently_dropped():
-    res = P.parse("Buy Nifty call when 9 EMA crosses above 21 EMA and MACD is positive on 15 min")
-    assert any("MACD" in w for w in res.warnings) and res.confidence < 0.9
+    res = P.parse("Buy Nifty call when 9 EMA crosses above 21 EMA and stochastic is above 50 on 15 min")
+    assert any("Stochastic" in w for w in res.warnings) and res.confidence < 0.9
+
+
+def test_macd_signal_cross():
+    s = P.parse("Buy Nifty futures when MACD crosses above signal line on 15 min").strategy
+    assert ("macd", "crosses_above", "macd.signal") in conds(s.entry.long)
+
+
+def test_macd_filter():
+    s = P.parse("Buy Nifty call when 9 EMA crosses above 21 EMA and MACD is positive on 15 min").strategy
+    assert ("macd", "gt", 0.0) in conds(s.entry.long)
+
+
+def test_bollinger_upper_short_mirrors_to_lower():
+    s = P.parse("Short Nifty futures when price closes above the upper Bollinger band on 5 min, target 0.5%").strategy
+    assert s.direction == "short"
+    assert ("close", "crosses_above", "bb.upper") in conds(s.entry.short)
+    assert s.entry.short[0].mirrored().right == "bb.lower"
+
+
+def test_previous_day_low_breakdown():
+    s = P.parse("Buy Nifty put when price breaks below previous day low").strategy
+    assert s.direction == "short" and ("close", "crosses_below", "pd.low") in conds(s.entry.short)
+
+
+@pytest.mark.parametrize("text", [
+    "Buy Nifty futures when MACD crosses above signal line on 15 min",
+    "Short Nifty futures when price closes above the upper Bollinger band on 5 min, target 0.5%",
+    "Buy BankNifty futures when price breaks above previous day high after 9:30, SL 0.5%",
+])
+def test_new_indicators_backtest_end_to_end(text):
+    from app.backtest.engine import run_backtest
+    from app.data.candles import resample
+    from app.data.synthetic import generate_candles
+
+    s = P.parse(text).strategy
+    res = run_backtest(s, resample(generate_candles(s.underlying, days=60, seed=7, bar_minutes=5), s.timeframe), "synthetic")
+    assert res is not None
 
 
 def test_backtest_refuses_synthetic_when_disabled(monkeypatch):

@@ -67,3 +67,23 @@ def test_opening_range(candles_5m):
     assert orb[day]["high"].iloc[:3].isna().all()  # not available inside the range
     assert orb[day]["high"].iloc[3] == d0["high"].iloc[:3].max()
     assert orb[day]["low"].iloc[5] == d0["low"].iloc[:3].min()
+
+
+def test_macd_bollinger_prevday_shapes():
+    import numpy as np
+    import pandas as pd
+
+    from app import indicators as ind
+
+    idx = pd.DatetimeIndex([d + pd.Timedelta(minutes=5 * i) for d in pd.to_datetime(["2026-01-05 09:15", "2026-01-06 09:15", "2026-01-07 09:15"]) for i in range(75)])
+    close = pd.Series(np.linspace(100, 120, len(idx)), index=idx)
+    df = pd.DataFrame({"open": close, "high": close + 1, "low": close - 1, "close": close, "volume": 0}, index=idx)
+    m = ind.macd(close)
+    assert (m["hist"] == m["macd"] - m["signal"]).all()
+    b = ind.bollinger(close, 20, 2)
+    assert (b["upper"].dropna() >= b["lower"].dropna()).all()
+    pdv = ind.previous_day(df)
+    day2 = df.index.normalize() == df.index.normalize().unique()[1]
+    first_day = df[df.index.normalize() == df.index.normalize().unique()[0]]
+    assert pdv.loc[day2, "high"].iloc[0] == first_day["high"].max()
+    assert pdv.loc[day2, "close"].iloc[0] == first_day["close"].iloc[-1]
