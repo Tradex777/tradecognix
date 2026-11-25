@@ -53,10 +53,10 @@ class Settings(BaseSettings):
 
     # LLM (optional). Gemini free tier or any OpenAI-compatible endpoint (Ollama, Groq, OpenRouter...).
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash-lite"
     openai_base_url: str = ""
     openai_api_key: str = ""
-    openai_model: str = "llama3.1"
+    openai_model: str = "openai/gpt-oss-120b"
     llm_timeout_seconds: float = 20.0
 
     # Engine

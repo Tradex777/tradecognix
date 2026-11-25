@@ -120,3 +120,14 @@ def test_explain_round_trip():
     text = explain(s)
     assert "EMA 9 crosses above EMA 21" in text and "15:15" in text and "call (CE)" in text
     assert rules_table(s)["Timeframe"] == "15m"
+
+
+def test_llm_falls_through_to_second_provider(monkeypatch):
+    import app.strategy.llm as llm
+
+    spec = P.parse(VIDEO).strategy.model_dump()
+    settings = type("S", (), {"gemini_api_key": "x", "openai_base_url": "http://x/v1", "openai_model": "m"})()
+    monkeypatch.setattr(llm, "get_settings", lambda: settings)
+    monkeypatch.setattr(llm, "call_gemini", lambda text: (_ for _ in ()).throw(RuntimeError("429")))
+    monkeypatch.setattr(llm, "call_openai_compatible", lambda text: __import__("json").dumps(spec))
+    assert llm.llm_parse(VIDEO).timeframe == "15m"

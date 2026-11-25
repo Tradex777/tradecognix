@@ -83,9 +83,24 @@ def call_openai_compatible(text: str, system_prompt: str = SYSTEM_PROMPT, user_p
     return r.json()["choices"][0]["message"]["content"]
 
 
-def llm_parse(text: str) -> Strategy:
+def _providers():
     s = get_settings()
-    raw = call_gemini(text) if s.gemini_api_key else call_openai_compatible(text)
-    data = _extract_json(raw)
-    data.setdefault("description", text)
-    return Strategy.model_validate(data)
+    out = []
+    if s.gemini_api_key:
+        out.append(call_gemini)
+    if getattr(s, "openai_base_url", None) and getattr(s, "openai_model", None):
+        out.append(call_openai_compatible)
+    return out
+
+
+def llm_parse(text: str) -> Strategy:
+    """Try each configured provider in order (Gemini, then OpenAI-compatible); raise the last error."""
+    last: Exception = RuntimeError("No LLM configured")
+    for call in _providers():
+        try:
+            data = _extract_json(call(text))
+            data.setdefault("description", text)
+            return Strategy.model_validate(data)
+        except Exception as e:  # network, quota, bad JSON, schema mismatch -> next provider
+            last = e
+    raise last
