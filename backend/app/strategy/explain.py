@@ -76,7 +76,8 @@ def explain(s: Strategy) -> str:
         lines.append(f"{_cap(_action(s, 'long'))} when {_join(s, longs, s.entry.logic)}.")
     if s.direction in ("short", "both") and shorts:
         lines.append(f"{_cap(_action(s, 'short'))} when {_join(s, shorts, s.entry.logic)}.")
-    lines.append(f"New entries only between {s.entry_window.start} and {s.entry_window.end} IST.")
+    if s.intraday:
+        lines.append(f"New entries only between {s.entry_window.start} and {s.entry_window.end} IST.")
     exits = []
     if s.exit.on_opposite_signal and s.direction != "neutral":
         exits.append("on the opposite signal")
@@ -94,10 +95,15 @@ def explain(s: Strategy) -> str:
         exits.append(f"at a {s.exit.target_points:g}-point target")
     if s.exit.trailing_sl_pct:
         exits.append(f"on a {s.exit.trailing_sl_pct:g}% trailing stop")
-    hard = f"and always by {s.hard_exit} IST" if s.intraday else ""
-    lines.append(("Exit " + ", ".join(exits) + (", " + hard if exits and hard else hard) + ".") if (exits or hard) else "")
+    hard = f"always by {s.hard_exit} IST" if s.intraday else ""
+    if exits and hard:
+        lines.append("Exit " + ", ".join(exits) + ", and " + hard + ".")
+    elif exits or hard:
+        lines.append("Exit " + (", ".join(exits) or hard.replace("always by", "by")) + ".")
     unit = "lot" if s.instrument_type != "equity" else "share"
-    risk = f"Risk: {s.risk.lots} {unit}{'s' if s.risk.lots > 1 else ''}, at most {s.risk.max_trades_per_day} trade{'s' if s.risk.max_trades_per_day > 1 else ''} a day"
+    risk = f"Risk: {s.risk.lots} {unit}{'s' if s.risk.lots > 1 else ''}"
+    if s.intraday:
+        risk += f", at most {s.risk.max_trades_per_day} trade{'s' if s.risk.max_trades_per_day > 1 else ''} a day"
     if s.risk.daily_loss_cap:
         risk += f", stop for the day after a ₹{s.risk.daily_loss_cap:,.0f} loss"
     lines.append(risk + ".")

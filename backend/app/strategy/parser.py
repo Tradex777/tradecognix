@@ -44,6 +44,7 @@ EQUITY_ALIASES = {
 }
 # Light Hinglish normalisation (roadmap: full regional-language support via the LLM path)
 HINGLISH = {
+    r"\b(\d{1,2})(?:[:.](\d{2}))?\s*baje\b": lambda m: f"{m.group(1)}:{m.group(2) or '00'}",
     r"\bkharido\b|\bkharid(o|na|en)?\b|\blo\b": "buy", r"\bbecho\b|\bbech(o|na|en)?\b": "sell", r"\bjab\b": "when",
     r"\bupar\b|\bupper\b": "above", r"\bneeche\b|\bniche\b": "below", r"\bke baad\b|\bbaad\b": "after",
     r"\bpe exit\b|\bpar exit\b": "exit at", r"\bka\b|\bki\b|\bke\b|\bko\b|\bse\b|\bkare?\b|\bkaro\b": " ",
@@ -98,8 +99,8 @@ class RuleBasedParser:
         if len(raw) > 4000:
             raise ValueError("Strategy text is too long (max 4000 characters).")
         t = " " + raw.lower().replace("₹", " rs ").replace("–", "-").replace("—", "-") + " "
-        for pat, rep in HINGLISH.items():
-            t = re.sub(pat, rep, t)
+        for pat, repl in HINGLISH.items():
+            t = re.sub(pat, repl, t)
         t = re.sub(r"\s+", " ", t)
 
         # ---- underlying / instrument ----
@@ -186,6 +187,10 @@ class RuleBasedParser:
             elif has_put and not has_call:
                 direction = "long" if sell_mode else "short"
 
+        # The first trade verb sets the side ("buy at 9:30 and sell at 3 pm" is a long trade).
+        first_verb = re.search(r"\b(buy|long|sell|short|write)\b", t)
+        verb_short = bool(first_verb and first_verb.group(1) in ("sell", "short", "write"))
+
         # ---- indicators & entry conditions ----
         indicators: list[IndicatorSpec] = []
         long_c: list[Condition] = []
@@ -201,7 +206,10 @@ class RuleBasedParser:
             return spec.id
 
         # split entry clause vs exit clause
-        exit_split = re.split(r"\b(?:exit|square\s?off|sell when|close (?:the )?(?:position|trade)|book profit)\b", t, maxsplit=1)
+        exit_words = r"\b(?:exit|square\s?off|close (?:the )?(?:position|trade)|book profit)\b"
+        if not verb_short:  # for a long trade, a later "sell when/at/if" is the exit
+            exit_words += r"|\b(?:sell|squareoff)\s+(?:when|at|if|on|by)\b"
+        exit_split = re.split(exit_words, t, maxsplit=1)
         entry_part = exit_split[0]
         exit_part = exit_split[1] if len(exit_split) > 1 else ""
 
@@ -227,7 +235,9 @@ class RuleBasedParser:
         st_m = re.search(r"super\s?trend\s*\(?\s*(\d{1,2})?\s*[,/ ]\s*(\d+(?:\.\d+)?)?", t)
         vwap_m = re.search(r"\bvwap\b", t)
 
+        primary = None
         if orb:
+            primary = "orb"
             times = _find_times(t)
             start, end = "09:15", "09:30"
             if orb.group(1):
@@ -244,6 +254,7 @@ class RuleBasedParser:
             if direction is None:
                 direction = "short" if bear and not bull else "long" if bull and not bear else "both"
         elif len(ma_list) >= 2:
+            primary = "ma"
             (k1, p1), (k2, p2) = ma_list[0], ma_list[1]
             fast, slow = sorted([(p1, k1), (p2, k2)])
             fid = add_ind(IndicatorSpec(id=f"{fast[1]}{fast[0]}", kind=fast[1], period=fast[0]))
@@ -258,26 +269,23 @@ class RuleBasedParser:
                 else:
                     direction = "both"
         elif rsi_m and re.search(r"rsi[^.]*?(below|under|above|over|crosses|<|>)\s*(\d{1,2})", entry_part):
+            primary = "rsi"
             period = int(rsi_m.group(1) or 14)
             rid = add_ind(IndicatorSpec(id=f"rsi{period}", kind="rsi", period=period))
             m = re.search(r"rsi[^.]*?(below|under|above|over|<|>)\s*(\d{1,2})", entry_part)
             lvl = float(m.group(2))
-            if m.group(1) in ("below", "under", "<"):
-                long_c.append(Condition(left=rid, op="crosses_below", right=lvl))
-                short_c.append(Condition(left=rid, op="crosses_above", right=100 - lvl))
-                direction = direction or "long"
+            stated = Condition(left=rid, op="crosses_below" if m.group(1) in ("below", "under", "<") else "crosses_above", right=lvl)
+            # The trade itself says which side the user means: buy call / buy shares = long, buy put / sell shares = short.
+            bias = direction or ("short" if verb_short and instrument_type != "option" else "long")
+            if bias == "short":
+                short_c.append(stated)
+                long_c.append(stated.mirrored())
             else:
-                short_c.append(Condition(left=rid, op="crosses_above", right=lvl))
-                long_c.append(Condition(left=rid, op="crosses_below", right=100 - lvl))
-                direction = direction or ("long" if re.search(r"\bbuy\b", entry_part) and instrument_type != "option" and "momentum" in t else "short")
-                if re.search(r"\bbuy\b", entry_part) and instrument_type != "option":
-                    # "buy when RSI crosses above 60" = momentum long
-                    long_c[-1:] = []
-                    short_c.pop()
-                    long_c.append(Condition(left=rid, op="crosses_above", right=lvl))
-                    short_c.append(Condition(left=rid, op="crosses_below", right=100 - lvl))
-                    direction = "long"
+                long_c.append(stated)
+                short_c.append(stated.mirrored())
+            direction = direction or bias
         elif st_m:
+            primary = "supertrend"
             period = int(st_m.group(1) or 10)
             mult = float(st_m.group(2) or 3)
             sid = add_ind(IndicatorSpec(id="st", kind="supertrend", period=period, multiplier=mult))
@@ -288,6 +296,7 @@ class RuleBasedParser:
                 green = re.search(r"turns? green|bullish|flips? green", entry_part)
                 direction = "short" if red and not green else "long" if green and not red else "both"
         elif vwap_m:
+            primary = "vwap"
             vid = add_ind(IndicatorSpec(id="vwap", kind="vwap"))
             if re.search(r"pull(?:s|ed|ing)?\s?back|retrace|touch|bounce", entry_part):
                 long_c += [Condition(left="low", op="lte", right=vid), Condition(left="close", op="gt", right=vid)]
@@ -301,14 +310,51 @@ class RuleBasedParser:
                 long_c.append(Condition(left="close", op="gt", right=mid))
                 short_c.append(Condition(left="close", op="lt", right=mid))
             if direction is None:
-                direction = "short" if re.search(r"\b(sell|short)\b", entry_part) and instrument_type != "option" else "long"
+                direction = "short" if verb_short and instrument_type != "option" else "long"
         elif len(ma_list) == 1:
+            primary = "ma1"
             k, p = ma_list[0]
             mid = add_ind(IndicatorSpec(id=f"{k}{p}", kind=k, period=p))
             long_c.append(Condition(left="close", op="crosses_above", right=mid))
             short_c.append(Condition(left="close", op="crosses_below", right=mid))
             if direction is None:
                 direction = "long" if cross_up and not cross_dn else "short" if cross_dn and not cross_up else "both"
+
+        # ---- extra AND filters on top of the main signal ("... and RSI > 55", "... while above VWAP") ----
+        if long_c or short_c:
+            def add_filter(c: Condition) -> None:
+                long_c.append(c)
+                short_c.append(c.mirrored())
+
+            if primary != "rsi" and rsi_m:
+                m = re.search(r"rsi\s*\(?\s*\d{0,2}\s*\)?\s*(?:is\s*|stays?\s*|remains?\s*)?(above|over|below|under|>=?|<=?)\s*(\d{1,2})", entry_part)
+                if m:
+                    period = int(rsi_m.group(1) or 14)
+                    rid = add_ind(IndicatorSpec(id=f"rsi{period}", kind="rsi", period=period))
+                    add_filter(Condition(left=rid, op="gt" if m.group(1) in ("above", "over", ">", ">=") else "lt", right=float(m.group(2))))
+            if primary != "vwap" and vwap_m:
+                m = re.search(r"(above|over|below|under)\s+(?:the\s+)?vwap", entry_part)
+                if m:
+                    vid = add_ind(IndicatorSpec(id="vwap", kind="vwap"))
+                    add_filter(Condition(left="close", op="gt" if m.group(1) in ("above", "over") else "lt", right=vid))
+            m = re.search(r"adx\s*\(?\s*(\d{1,2})?\s*\)?\s*(?:is\s*)?(above|over|>=?|below|under|<=?)\s*(\d{1,2})", entry_part)
+            if m:
+                period = int(m.group(1) or 14)
+                aid = add_ind(IndicatorSpec(id=f"adx{period}", kind="adx", period=period))
+                add_filter(Condition(left=aid, op="gt" if m.group(2) in ("above", "over", ">", ">=") else "lt", right=float(m.group(3))))
+            if primary in ("ma",) and len(ma_list) >= 3:
+                m = re.search(r"(above|over|below|under)\s+(?:the\s+)?(\d{1,3})\s*-?\s*(ema|sma|dma)", entry_part)
+                if m:
+                    k = "sma" if m.group(3) == "dma" else m.group(3)
+                    mid = add_ind(IndicatorSpec(id=f"{k}{m.group(2)}", kind=k, period=int(m.group(2))))
+                    add_filter(Condition(left="close", op="gt" if m.group(1) in ("above", "over") else "lt", right=mid))
+
+        # ---- things we can read but not run yet: say so instead of silently ignoring them ----
+        UNSUPPORTED = [(r"\bmacd\b", "MACD"), (r"bollinger|\bbb\b", "Bollinger Bands"), (r"stochastic", "Stochastic"),
+                       (r"(previous|prev|yesterday'?s?)\s*(day'?s?\s*)?(high|low|close)|\bpd[hl]\b", "previous-day levels"),
+                       (r"52\s*-?\s*week", "52-week levels"), (r"iron\s*(condor|fly|butterfly)", "iron condors / flies"),
+                       (r"\bcpr\b|pivot", "pivot / CPR levels"), (r"\bgap\s*(up|down)", "gap rules")]
+        unsupported = [label for pat, label in UNSUPPORTED if re.search(pat, t)]
 
         times = _find_times(t)
         fixed_time_entry = None
@@ -318,14 +364,19 @@ class RuleBasedParser:
                 fixed_time_entry = _norm_time(int(at.group(1)), int(at.group(2) or 0), at.group(3))
             if fixed_time_entry:
                 long_c.append(Condition(left="time", op="at_time", right=fixed_time_entry))
-                direction = direction or ("neutral" if option and option.mode.startswith(("straddle", "strangle")) else ("short" if re.search(r"\b(sell|short)\b", entry_part) and instrument_type != "option" else "long"))
+                direction = direction or ("neutral" if option and option.mode.startswith(("straddle", "strangle")) else ("short" if verb_short and instrument_type != "option" else "long"))
                 if direction == "short":
                     short_c, long_c = long_c, []
             else:
+                if unsupported:
+                    raise ValueError(f"{', '.join(unsupported)} {'is' if len(unsupported) == 1 else 'are'} not supported yet. "
+                                     "Use EMA/SMA, RSI, VWAP, Supertrend, ADX, an opening range or a fixed entry time.")
                 raise ValueError("Could not find an entry rule. Mention an indicator (EMA, SMA, RSI, VWAP, Supertrend), an opening range, or a fixed entry time.")
+        if unsupported:
+            warnings.append(f"Ignored {', '.join(unsupported)}: not supported yet. Check the rules before backtesting.")
 
         if direction is None:
-            direction = "short" if re.search(r"\b(sell|short)\b", entry_part) and instrument_type != "option" else "long"
+            direction = "short" if verb_short and instrument_type != "option" else "long"
         if direction == "long":
             short_c = []
         elif direction == "short":
@@ -333,6 +384,8 @@ class RuleBasedParser:
 
         # ---- exits ----
         on_opposite = bool(re.search(r"opposite|reverse (?:cross|signal)|cross(?:es)? back|counter signal", t))
+        if primary in ("ma", "ma1") and re.search(r"\bcross(?:es|ing|ed)?\b", exit_part):
+            on_opposite = True  # "exit when it crosses below" = the opposite crossover
         if rsi_m and exit_part:
             m = re.search(r"rsi[^.]*?(above|over|below|under|>|<)\s*(\d{1,2})", exit_part)
             if m:
