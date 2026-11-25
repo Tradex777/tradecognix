@@ -743,6 +743,9 @@
     }
     return out;
   }
+  // Must match LOT_SIZE in backend/app/backtest/rates.py
+  var LOTS = { NIFTY: 65, BANKNIFTY: 30, FINNIFTY: 60, MIDCPNIFTY: 120, SENSEX: 20 };
+  function lotFor(base) { return /BANKNIFTY/.test(base) ? LOTS.BANKNIFTY : /FINNIFTY/.test(base) ? LOTS.FINNIFTY : /MIDCPNIFTY/.test(base) ? LOTS.MIDCPNIFTY : /SENSEX/.test(base) ? LOTS.SENSEX : LOTS.NIFTY; }
   function parse(text) {
     var t = normalise(text), r = {};
     var idx = findIndex(t) || findStock(t);
@@ -750,7 +753,7 @@
     var fs = t.match(/\b(buy|sell|short|long|go long|go short)\b/), side = fs && /sell|short/.test(fs[1]) ? "Sell" : "Buy";
     var mny = /\botm\b|out of the money/.test(t) ? "OTM" : /\bitm\b|in the money/.test(t) ? "ITM" : "ATM";
     var isPut = /\bput\b|\b(?:atm|itm|otm|\d{3,6})\s*pe\b|\bpe\s+option/.test(t), isCall = /\bcall\b|\bce\b/.test(t);
-    var opt = /iron\s*condor/.test(t) ? "iron condor" : /straddle/.test(t) ? "ATM straddle" : /strangle/.test(t) ? "OTM strangle" : isPut && !isCall ? mny + " put" : isCall ? mny + " call" : /\boptions?\b/.test(t) ? mny + (side === "Sell" ? " put" : " call") : null;
+    var opt = /straddle/.test(t) ? "ATM straddle" : /strangle/.test(t) ? "OTM strangle" : isPut && !isCall ? mny + " put" : isCall ? mny + " call" : /\boptions?\b/.test(t) ? mny + (side === "Sell" ? " put" : " call") : null;
     var fut = /futures?|\bfut\b/.test(t);
     var equity = idx !== "Instrument?" && !findIndex(t) && !opt && !fut;
     r.Instrument = idx + (opt ? " options · " + side + " " + opt : fut ? " futures · " + side : equity ? " equity · " + side : " · " + side);
@@ -776,27 +779,39 @@
     var gap = t.match(/gaps?\s*(up|down)\s*(?:by\s*)?(?:more than\s*|over\s*)?(\d+(?:\.\d+)?)\s*%/);
     var rsi = t.match(/rsi\s*\(?\s*(\d+)?\s*\)?\s*(?:is\s*|goes\s*|drops\s*|falls\s*|crosses\s*|moves\s*|dips\s*|rises\s*|comes\s*)?(below|under|above|over|<|>)\s*(\d+)/);
     var rsi2 = !rsi && t.match(/rsi\s*\(?\s*(\d+)\s*\)?\s*(below|above)\b/);
-    if (/opening range|\borb\b|first 15 min/.test(t)) r.Entry = "Break " + (/below|breakdown|low/.test(t) || side === "Sell" ? "below" : "above") + " 09:15–09:30 range";
-    else if (/straddle|strangle|iron\s*condor/.test(t)) r.Entry = side + " " + (opt || "straddle") + " at fixed time";
-    else if (gap) r.Entry = "Gap " + gap[1] + " > " + gap[2] + "% at open, fade it";
-    else if (rsi) r.Entry = "RSI " + (rsi[1] || 14) + (/below|under|</.test(rsi[2]) ? " < " : " > ") + rsi[3];
-    else if (rsi2) r.Entry = "RSI 14" + (rsi2[2] === "below" ? " < " : " > ") + rsi2[1];
-    else if (/rsi/.test(t) && /oversold|overbought/.test(t)) r.Entry = /oversold/.test(t) ? "RSI 14 < 30" : "RSI 14 > 70";
-    else if (/macd/.test(t)) r.Entry = "MACD " + dir + " signal (12,26,9)";
-    else if (/bollinger|\bbb\b/.test(t)) r.Entry = /upper/.test(t) || (!/lower/.test(t) && side === "Sell") ? "Close > upper BB (20,2)" : "Close < lower BB (20,2)";
-    else if (/golden cross/.test(t)) r.Entry = "SMA 50 ▲ SMA 200";
-    else if (/death cross/.test(t)) r.Entry = "SMA 50 ▼ SMA 200";
-    else if (emas.length >= 2) r.Entry = "EMA " + emas[0] + " " + dir + " EMA " + emas[1];
-    else if (smas.length >= 2) r.Entry = "SMA " + smas[0] + " " + dir + " SMA " + smas[1];
-    else if (/supertrend/.test(t)) { var st = t.match(/supertrend\s*\(?\s*(\d+)\s*[,/ ]\s*(\d+(?:\.\d+)?)/); r.Entry = "Supertrend " + (st ? st[1] + "," + st[2] : "10,3") + (side === "Sell" && !/green/.test(t) ? " turns red" : " turns green"); }
-    else if (/vwap/.test(t)) r.Entry = /(crosses|breaks|slips|goes|falls)\s+below\s+vwap|below vwap/.test(t) && !/pull\s*back/.test(t)
+    // Only what the backend DSL can run (backend/app/strategy/dsl.py): EMA/SMA, RSI, VWAP, Supertrend, ADX, ORB, fixed time.
+    var UNSUP = [[/\bmacd\b/, "MACD"], [/bollinger|\bbb\b/, "Bollinger Bands"], [/stochastic/, "Stochastic"],
+      [/(previous|prev|yesterday'?s?|pichle din k[ai]|last day'?s?)\s*(?:day'?s?\s*)?(high|low|close)|\bpd[hl]\b/, "previous-day levels"],
+      [/52\s*-?\s*week/, "52-week levels"], [/iron\s*(condor|fly|butterfly)/, "iron condors / flies"], [/\bcpr\b|pivot/, "pivot / CPR levels"], [/\bgaps?\s*(up|down)/, "gap rules"]];
+    var unsupported = UNSUP.filter(function (u) { return u[0].test(t); }).map(function (u) { return u[1]; });
+    var primary = null;
+    if (/opening range|\borb\b|first 15 min/.test(t)) { primary = "orb"; r.Entry = "Break " + (/below|breakdown|low/.test(t) || side === "Sell" ? "below" : "above") + " 09:15–09:30 range"; }
+    else if (/straddle|strangle/.test(t)) { primary = "time"; r.Entry = side + " " + (opt || "straddle") + " at fixed time"; }
+    else if (/golden cross/.test(t)) { primary = "ma"; r.Entry = "SMA 50 ▲ SMA 200"; }
+    else if (/death cross/.test(t)) { primary = "ma"; r.Entry = "SMA 50 ▼ SMA 200"; }
+    else if (emas.length >= 2) { primary = "ma"; r.Entry = "EMA " + emas[0] + " " + dir + " EMA " + emas[1]; }
+    else if (smas.length >= 2) { primary = "ma"; r.Entry = "SMA " + smas[0] + " " + dir + " SMA " + smas[1]; }
+    else if (rsi) { primary = "rsi"; r.Entry = "RSI " + (rsi[1] || 14) + (/below|under|</.test(rsi[2]) ? " < " : " > ") + rsi[3]; }
+    else if (rsi2) { primary = "rsi"; r.Entry = "RSI 14" + (rsi2[2] === "below" ? " < " : " > ") + rsi2[1]; }
+    else if (/rsi/.test(t) && /oversold|overbought/.test(t)) { primary = "rsi"; r.Entry = /oversold/.test(t) ? "RSI 14 < 30" : "RSI 14 > 70"; }
+    else if (/supertrend/.test(t)) { primary = "st"; var st = t.match(/supertrend\s*\(?\s*(\d+)\s*[,/ ]\s*(\d+(?:\.\d+)?)/); r.Entry = "Supertrend " + (st ? st[1] + "," + st[2] : "10,3") + (side === "Sell" && !/green/.test(t) ? " turns red" : " turns green"); }
+    else if (/vwap/.test(t)) { primary = "vwap"; r.Entry = /(crosses|breaks|slips|goes|falls)\s+below\s+vwap|below vwap/.test(t) && !/pull\s*back/.test(t)
       ? "Cross below VWAP" + (emas.length ? ", below EMA " + emas[0] : "")
-      : /(crosses|breaks)\s+above\s+vwap/.test(t) ? "Cross above VWAP" + (emas.length ? ", above EMA " + emas[0] : "") : "Pullback to VWAP" + (emas.length ? ", above EMA " + emas[0] : "");
-    else if (/(previous|prev|yesterday'?s?|pichle din k[ai]|last day'?s?)\s*(?:day'?s?\s*)?(high|low)|\bpd[hl]\b/.test(t)) r.Entry = /low|\bpdl\b/.test(t.match(/(previous|prev|yesterday'?s?|pichle din k[ai]|last day'?s?)\s*(?:day'?s?\s*)?(high|low)|\bpd[hl]\b/)[0]) ? "Break below previous day low" : "Break above previous day high";
-    else if (/52\s*-?\s*week\s*high/.test(t)) r.Entry = "Break above 52-week high";
-    else if (emas.length === 1) r.Entry = "Close " + dir + " EMA " + emas[0];
-    else if (smas.length === 1) r.Entry = "Close " + dir + " SMA " + smas[0];
-    else r.Entry = "Custom condition · review";
+      : /(crosses|breaks)\s+above\s+vwap/.test(t) ? "Cross above VWAP" + (emas.length ? ", above EMA " + emas[0] : "") : "Pullback to VWAP" + (emas.length ? ", above EMA " + emas[0] : ""); }
+    else if (emas.length === 1) { primary = "ma1"; r.Entry = "Close " + dir + " EMA " + emas[0]; }
+    else if (smas.length === 1) { primary = "ma1"; r.Entry = "Close " + dir + " SMA " + smas[0]; }
+    else if (/\bat\s+\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?/.test(t)) { primary = "time"; r.Entry = side + " at fixed time"; }
+    else r.Entry = unsupported.length ? unsupported.join(", ") + " · not supported yet" : "Custom condition · review";
+    // AND filters on top of the main signal, same as the backend parser
+    if (primary && primary !== "time") {
+      var rf = t.match(/rsi\s*\(?\s*\d{0,2}\s*\)?\s*(?:is\s*|stays?\s*)?(above|over|below|under|>=?|<=?)\s*(\d{1,2})/);
+      if (primary !== "rsi" && rf) r.Entry += " + RSI 14 " + (/above|over|>/.test(rf[1]) ? "> " : "< ") + rf[2];
+      var vf = t.match(/(above|over|below|under)\s+(?:the\s+)?vwap/);
+      if (primary !== "vwap" && vf) r.Entry += " + close " + (/above|over/.test(vf[1]) ? "above" : "below") + " VWAP";
+      var af = t.match(/adx\s*\(?\s*(\d{1,2})?\s*\)?\s*(?:is\s*)?(?:above|over|>=?)\s*(\d{1,2})/);
+      if (af) r.Entry += " · ADX(14) > " + af[2];
+    }
+    Object.defineProperty(r, "_unsupported", { value: unsupported, enumerable: false });
 
     // time window and exit time
     var times = pickTimes(t), exitT = null, starts = [], ends = [];
@@ -818,7 +833,8 @@
     if (/opposite|reverse (?:cross|signal)|crosses back|ulta|death cross/.test(t) || /(?:exit|sell|close)\s+(?:\w+\s+){0,2}(?:when|if|on)\s+[^.,]*cross/.test(t) && /ema|sma|dma|\bma\b|golden|macd/.test(t)) ex.push("opposite cross");
     else if (/turns red|flips red/.test(t) && /supertrend/.test(t)) ex.push("Supertrend flips red");
     else if (rsi || rsi2) { var tail = t.slice(t.indexOf((rsi || rsi2)[0]) + (rsi || rsi2)[0].length); var ab = tail.match(/(?:above|over|>)\s*(\d+)|(\d+)\s*above/); if (ab) ex.push("RSI > " + (ab[1] || ab[2])); }
-    var sl = t.match(/(?:stop\s*loss|\bsl\b|\bstop\b)\s*(?:of|at|=|:|hai|rakho|lagao)?\s*(\d+(?:\.\d+)?)\s*(%|points?|pts|rs|₹)?/) || t.match(/(\d+(?:\.\d+)?)\s*(%|points?|pts)\s*(?:ka\s*)?(?:stop\s*loss|\bsl\b|\bstop\b)/);
+    var tNoTrail = t.replace(/trail(?:ing)?\s*(?:stop\s*(?:loss)?|sl)?\s*(?:of|at|by)?\s*\d+(?:\.\d+)?\s*%/g, " ");
+    var sl = tNoTrail.match(/(?:stop\s*loss|\bsl\b|\bstop\b)\s*(?:of|at|=|:|hai|rakho|lagao)?\s*(\d+(?:\.\d+)?)\s*(%|points?|pts|rs|₹)?/) || tNoTrail.match(/(\d+(?:\.\d+)?)\s*(%|points?|pts)\s*(?:ka\s*)?(?:stop\s*loss|\bsl\b|\bstop\b)/);
     var tg = t.match(/(?:target|tgt|take\s*profit|profit\s*target|\btp\b)\s*(?:of|at|=|:|hai|rakho)?\s*(\d+(?:\.\d+)?)\s*(%|points?|pts)?/) || t.match(/(\d+(?:\.\d+)?)\s*(%|points?|pts)\s*(?:ka\s*)?(?:target|tgt|profit)/);
     var tr = t.match(/trail(?:ing)?\s*(?:stop\s*(?:loss)?|sl)?\s*(?:of|at|by)?\s*(\d+(?:\.\d+)?)\s*%|(\d+(?:\.\d+)?)\s*%\s*trail/);
     var unit = function (u) { return !u || u === "%" ? "%" : " pts"; };
@@ -885,7 +901,7 @@
   function backtest(rules) {
     var q = ruleInfo(rules), seed = hash(q.seedKey), S0 = rng(seed);
     var days = DAYS_CACHE || (DAYS_CACHE = tradingDays());
-    var lot = /BANKNIFTY/.test(q.base) ? 30 : /FINNIFTY/.test(q.base) ? 65 : /MIDCPNIFTY/.test(q.base) ? 120 : /SENSEX/.test(q.base) ? 20 : 75;
+    var lot = lotFor(q.base);
     var tfF = { 1: 1.5, 3: 1.25, 5: 1, 10: 0.88, 15: 0.78, 30: 0.62, 60: 0.48 }[q.tfMin] || (q.daily ? 0.14 : 0.8);
     var baseFreq = 0.13 + S0() * 0.09, wr0 = 0.468 + S0() * 0.09;
     var U = (q.sellPrem ? 1500 : q.isOpt ? 1350 : q.index ? 1700 : 650) * clamp(q.lotMul, 0.2, 20) * (q.multi ? 1.5 : 1);
@@ -1163,12 +1179,17 @@
       done();
       var rules = parse(text);
       var unsure = Object.keys(rules).filter(function (k) { return /\?|review|\(default\)/.test(rules[k]); });
+      if (/not supported yet/.test(rules.Entry)) {
+        setLog($("#x-gen-log"), rules._unsupported.join(", ") + (rules._unsupported.length > 1 ? " aren't" : " isn't") + " supported yet. Use EMA/SMA, RSI, VWAP, Supertrend, ADX, an opening range or a fixed entry time.", "error");
+        return;
+      }
       if (/Instrument\?/.test(rules.Instrument) && /review/.test(rules.Entry)) {
         setLog($("#x-gen-log"), "Couldn't find an instrument or an entry condition. Try naming one, e.g. “Buy Nifty ATM call when 9 EMA crosses above 21 EMA”.", "error");
         return;
       }
       renderRules(rules, explain(rules));
-      setLog($("#x-gen-log"), "Parsed " + Object.keys(rules).length + " rules" + (unsure.length ? " · check " + unsure.join(", ") : "") + ".", unsure.length ? "" : "ok");
+      var ign = rules._unsupported && rules._unsupported.length ? " Ignored " + rules._unsupported.join(", ") + " (not supported yet)." : "";
+      setLog($("#x-gen-log"), "Parsed " + Object.keys(rules).length + " rules" + (unsure.length ? " · check " + unsure.join(", ") : "") + "." + ign, unsure.length || ign ? "" : "ok");
     }, reduce ? 200 : 1300);
   });
 
@@ -1425,7 +1446,7 @@
   }
   function demoTrades(sess, n, reason) {
     var r = sess.rules || S.rules || {}, q = ruleInfo(r), R = rng(hash(String(sess.id) + (reason || "") + S.journal.length)), day = lastSessionDay();
-    var lot = /BANKNIFTY/.test(q.base) ? 30 : /FINNIFTY/.test(q.base) ? 65 : /SENSEX/.test(q.base) ? 20 : 75;
+    var lot = lotFor(q.base);
     var qty = q.isOpt || q.index ? lot * Math.max(1, Math.round(q.lotMul)) : Math.max(1, Math.round(q.lotMul * 50));
     var lastPx = /BANKNIFTY/.test(q.base) ? 52200 : /SENSEX/.test(q.base) ? 80900 : /FINNIFTY/.test(q.base) ? 23900 : 24600, sideBuy = !/\bSell\b/.test(r.Instrument || "");
     var lo = Math.max(q.start, 560), hi = Math.max(lo + 10, Math.min(day.upto, q.exitM));
